@@ -678,6 +678,7 @@ const ADMIN_PIN='2026'; // <-- DEINEN eigenen PIN hier eintragen
 const EMPTY_DB=()=>({me:null,fixtures:[],preds:{},results:{},trio:{},stars:{},league:null});
 function initCloud(){ try{ if(SUPABASE.url&&SUPABASE.anonKey&&window.supabase){ sb=window.supabase.createClient(SUPABASE.url,SUPABASE.anonKey); CLOUD=true; } }catch(e){ console.warn('cloud init',e); CLOUD=false; } }
 function fxList(){ return FIX.map(f=>({id:f.id,md:f.md,g:f.g,home:f.h,away:f.a,ko:f.ko,v:f.v})); }
+function ensureFixtures(){ if(!DB.fixtures||!DB.fixtures.length){ DB.fixtures=fxList(); } }
 async function loadResultsCloud(FX){
   DB.results={};
   try{ const {data:res}=await sb.from('results').select('match,h,a'); const by={}; (res||[]).forEach(r=>{by[r.match]={h:r.h,a:r.a};}); FX.forEach(f=>{const r=by[f.home+'-'+f.away]; if(r&&r.h!=null&&r.a!=null)DB.results[f.id]={h:r.h,a:r.a};}); }catch(e){ console.warn('results',e); }
@@ -1115,6 +1116,7 @@ function enterApp(){ S.tab='heute'; render(); }
 
 /* ---------- shell ---------- */
 function render(){
+  ensureFixtures();
   const body=S.tab==='heute'?viewHeute():S.tab==='gruppen'?viewGruppen():S.tab==='stars'?viewStars():viewRangliste();
   app().innerHTML=`
     <div class="hd"><div class="hd-row"><div class="brand">${MARK}<span class="wm">Golazo</span></div>
