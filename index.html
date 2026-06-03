@@ -1695,6 +1695,7 @@ function openSettings(){
       <button class="btn btn-out btn-wide btn-sm" onclick="copyCode()">${svg(I.share)} Liga-Code teilen</button>
       <button class="btn btn-soft btn-wide btn-sm" style="margin-top:8px" onclick="leaveLeague()">Liga verlassen</button>`:''}
       ${DB.isAdmin?`<div class="set-sec">Betreiber</div><button class="set-link" onclick="openAdminGate()"><span>Admin · Ergebnisse &amp; Leistungen</span>${svg(I.chevR)}</button>`:''}
+      ${CLOUD?`<div class="set-sec">Konto</div><button class="set-link" onclick="openChangePw()"><span>Passwort ändern</span>${svg(I.chevR)}</button>`:''}
       <div class="set-sec">Über &amp; Rechtliches</div>
       <button class="set-link" onclick="openHowItWorks()"><span>So funktionieren die Punkte</span>${svg(I.chevR)}</button>
       <button class="set-link" onclick="openLegal()"><span>Rechtliche Hinweise &amp; Datenschutz</span>${svg(I.chevR)}</button>
@@ -1704,6 +1705,18 @@ function openSettings(){
     </div>`);
 }
 function saveProfile(){const n=($('#set-name').value||'').trim();const _c=nameAllowed(n);if(!_c.ok)return toast(_c.msg);DB.me.name=n;DB.me.fav=$('#set-fav').value||'';persist();closeSheet();render();toast('Profil gespeichert');}
+function openChangePw(){ if(!CLOUD)return; sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>Passwort ändern</h2><div class="ss">Mindestens 8 Zeichen</div></div>
+    <div class="sheet-bd">
+      <div class="field"><label>Neues Passwort</label><input id="pw-1" type="password" autocomplete="new-password" placeholder="••••••••"></div>
+      <div class="field"><label>Wiederholen</label><input id="pw-2" type="password" autocomplete="new-password" placeholder="••••••••"></div>
+      <div id="pw-err" class="auth-err"></div>
+      <button class="btn btn-pri btn-wide" onclick="doChangePw()">${svg(I.check)} Passwort speichern</button>
+      <button class="btn btn-soft btn-wide btn-sm" style="margin-top:9px" onclick="closeSheet()">Abbrechen</button>
+    </div>`); }
+async function doChangePw(){ const a=($('#pw-1').value||''), b=($('#pw-2').value||''); const err=$('#pw-err'); const fail=(m)=>{ if(err){err.textContent=m;err.style.display='block';} };
+  if(a.length<8)return fail('Mindestens 8 Zeichen.'); if(a!==b)return fail('Die Passwörter stimmen nicht überein.'); if(!CLOUD||!sb)return fail('Nur im Online-Modus.');
+  try{ const {error}=await sb.auth.updateUser({password:a}); if(error){ fail(error.message||'Fehler beim Ändern.'); return; } }catch(e){ fail('Fehler beim Ändern.'); return; }
+  closeSheet(); toast('Passwort geändert ✓'); }
 function toggleFx(btn){DB.fxOn=(DB.fxOn===false);btn.classList.toggle('on',DB.fxOn!==false);persist();}
 function leaveLeague(){confirmSheet('Liga verlassen?','Du verlässt die aktuelle Liga und kommst zurück zum Start. Deine Tipps bleiben erhalten.','Verlassen',doLeave);}
 function doLeave(){ if(CLOUD&&DB.league&&DB.league.code&&USER){ try{ sb.from('league_members').delete().eq('code',DB.league.code).eq('user_id',USER.id); }catch(e){} } DB.league=null; persist(); renderOnboard('welcome'); }
