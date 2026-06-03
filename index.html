@@ -701,6 +701,13 @@
   .st-wait{ font-size:11px;font-weight:700;color:var(--ink-3);background:var(--field);border-radius:999px;padding:5px 11px;flex-shrink:0; }
   .st-note{ font-size:12px;color:var(--ink-2);padding:12px 14px;line-height:1.5;background:var(--field); }
   .lb-tbl.tor .lb-th,.lb-tbl.tor .lb-row{ grid-template-columns:34px 1fr 52px 52px; }
+  .ban-badge{ font-size:10px;font-weight:800;background:var(--accent);color:#fff;border-radius:6px;padding:2px 7px;margin-left:6px;text-transform:uppercase;letter-spacing:.04em; }
+  .idbox{ margin-top:14px;background:var(--field);border-radius:var(--r);padding:13px 14px;font-size:12px;color:var(--ink-2);line-height:1.4; }
+  .idbox code{ display:block;margin:6px 0 0;font-size:11px;word-break:break-all;color:var(--ink);font-weight:700; }
+  .utip{ display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 12px;background:var(--field);border-radius:11px;margin-bottom:6px;font-size:13px;color:var(--ink); }
+  .utip-m{ display:flex;align-items:center;gap:5px;flex-wrap:wrap;line-height:1.5; }
+  .utip-s{ color:var(--accent);font-weight:700;flex-shrink:0; }
+  .utip .flag{ width:18px;height:13px;border-radius:2px; }
 </style>
 </head>
 <body>
@@ -740,7 +747,8 @@ async function loadResultsCloud(FX){
 }
 async function loadCloud(FX){
   DB=EMPTY_DB(); DB.fixtures=FX;
-  try{ const {data:st}=await sb.from('user_state').select('state').eq('user_id',USER.id).maybeSingle();
+  try{ const {data:st}=await sb.from('user_state').select('*').eq('user_id',USER.id).maybeSingle();
+    DB.banned=!!(st&&st.banned);
     if(st&&st.state){const s=st.state; DB.me=s.me||null; DB.preds=s.preds||{}; DB.stars=s.stars||{}; DB.trio=s.trio||{}; DB.league=s.league||null; DB.fxOn=s.fxOn; DB.special=s.special||{}; DB.refPts=s.refPts||0;} }catch(e){ console.warn('state',e); }
   await loadResultsCloud(FX);
   if(DB.league&&DB.league.code){ try{ const {data:rows}=await sb.rpc('league_board',{p_code:DB.league.code}); if(rows&&rows.length)DB.league.members=rows.map(r=>r.uname||'Spieler'); }catch(e){ console.warn('members',e); } }
@@ -828,7 +836,7 @@ async function doSignup(){ const email=($('#au-mail').value||'').trim(), pw=$('#
 async function doLogin(){ const email=($('#au-mail').value||'').trim(), pw=$('#au-pw').value||''; if(!email||!pw)return authErr('E-Mail und Passwort eingeben'); authErr('…');
   let r; try{ r=await sb.auth.signInWithPassword({email,password:pw}); }catch(e){ return authErr('Keine Verbindung — Internet prüfen und nochmal.'); }
   if(r.error)return authErr(authMsg(r.error.message)); USER=r.data.session.user; await afterAuth(); }
-async function afterAuth(){ const FX=fxList(); await loadCloud(FX); await loadReferrals(); if(!DB.me||!DB.league){ renderOnboard('welcome'); return;} await ensureMembership(); S.tab='heute'; render(); persist(); }
+async function afterAuth(){ const FX=fxList(); await loadCloud(FX); await loadReferrals(); if(DB.banned){renderBanned();return;} if(!DB.me||!DB.league){ renderOnboard('welcome'); return;} await ensureMembership(); S.tab='heute'; render(); persist(); }
 async function doLogout(){ try{ await sb.auth.signOut(); }catch(e){} USER=null; DB=EMPTY_DB(); closeSheet(); renderAuth('login'); }
 /* ============================================================
    OFFIZIELLE ERGEBNISSE — von dir (dem Betreiber) gepflegt.
@@ -1068,7 +1076,7 @@ async function boot(){
   initCloud();
   if(CLOUD){
     try{ const {data}=await sb.auth.getSession(); const session=data&&data.session;
-      if(session){ USER=session.user; await loadCloud(FX); await loadReferrals(); if(!DB.me||!DB.league){renderOnboard('welcome');return;} await ensureMembership(); render(); persist(); return; } }catch(e){ console.warn('session',e); }
+      if(session){ USER=session.user; await loadCloud(FX); await loadReferrals(); if(DB.banned){renderBanned();return;} if(!DB.me||!DB.league){renderOnboard('welcome');return;} await ensureMembership(); render(); persist(); return; } }catch(e){ console.warn('session',e); }
     renderAuth('signup'); return;
   }
   const saved=await sget(KEY);
@@ -1132,9 +1140,14 @@ function renderOnboard(mode){
   }
 }
 async function leaguesReg(){return (await sget('wm26:leagues'))||{};}
+const NAME_BLOCK=['hitler','heilhit','siegheil','nazi','swastik','hakenkreuz','kkk','1488','whitepower','jihad','isis','nigg','neger','niger','fag','faggot','retard','spast','mongo','hure','huren','schlampe','fotze','wichser','wixer','arschloch','missgeburt','judensau','kanake','zigeuner','schwuchtel','tranny','schwanz','penis','vagina','porno','fick','ficker','fuck','shit','bitch','asshole','cunt','scheiss','kacke','admin','golazo','moderator','support','official'];
+function normName(s){return (s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/\u00df/g,'s').replace(/[1!|]/g,'i').replace(/3/g,'e').replace(/0/g,'o').replace(/4/g,'a').replace(/[5$]/g,'s').replace(/7/g,'t').replace(/@/g,'a').replace(/[^a-z]/g,'');}
+function nameAllowed(s){const t=(s||'').trim();if(t.length<2)return{ok:false,msg:'Name ist zu kurz.'};if(t.length>24)return{ok:false,msg:'Name ist zu lang (max. 24 Zeichen).'};const n=normName(t);if(n.length<2)return{ok:false,msg:'Bitte einen echten Namen verwenden.'};for(const w of NAME_BLOCK){if(n.includes(w))return{ok:false,msg:'Dieser Name ist nicht erlaubt. Bitte wähle einen anderen.'};}return{ok:true};}
 async function doCreate(){
   const lg=($('#ob-league').value||'').trim(), name=($('#ob-name').value||'').trim();
   if(!lg)return toast('Liga-Name fehlt'); if(!name)return toast('Dein Name fehlt');
+  const _cn=nameAllowed(name); if(!_cn.ok)return toast(_cn.msg);
+  const _cl=nameAllowed(lg); if(!_cl.ok)return toast('Liga-Name nicht erlaubt — bitte anders benennen.');
   const fav=($('#ob-fav')||{}).value||'', tz=detectTz();
   if(CLOUD){
     let code=genCode(), made=false;
@@ -1153,6 +1166,7 @@ async function doCreate(){
 async function doJoin(){
   const code=($('#ob-code').value||'').trim().toUpperCase(), name=($('#ob-name').value||'').trim();
   if(code.length<4)return toast('Code zu kurz'); if(!name)return toast('Dein Name fehlt');
+  const _cn=nameAllowed(name); if(!_cn.ok)return toast(_cn.msg);
   const fav=($('#ob-fav')||{}).value||'', tz=detectTz();
   if(CLOUD){
     const {error:je}=await sb.rpc('join_league',{p_code:code,p_name:name});
@@ -1689,7 +1703,7 @@ function openSettings(){
       <p class="note" style="margin-top:16px;text-align:center">Golazo v1 · inoffizielles WM-Tippspiel</p>
     </div>`);
 }
-function saveProfile(){const n=($('#set-name').value||'').trim();if(n)DB.me.name=n;DB.me.fav=$('#set-fav').value||'';persist();closeSheet();render();toast('Profil gespeichert');}
+function saveProfile(){const n=($('#set-name').value||'').trim();const _c=nameAllowed(n);if(!_c.ok)return toast(_c.msg);DB.me.name=n;DB.me.fav=$('#set-fav').value||'';persist();closeSheet();render();toast('Profil gespeichert');}
 function toggleFx(btn){DB.fxOn=(DB.fxOn===false);btn.classList.toggle('on',DB.fxOn!==false);persist();}
 function leaveLeague(){confirmSheet('Liga verlassen?','Du verlässt die aktuelle Liga und kommst zurück zum Start. Deine Tipps bleiben erhalten.','Verlassen',doLeave);}
 function doLeave(){ if(CLOUD&&DB.league&&DB.league.code&&USER){ try{ sb.from('league_members').delete().eq('code',DB.league.code).eq('user_id',USER.id); }catch(e){} } DB.league=null; persist(); renderOnboard('welcome'); }
@@ -1770,6 +1784,7 @@ function renderAdminList(){
     <div class="sheet-bd" style="padding-top:6px">
       ${!CLOUD?`<div class="adm-note">${svg(I.clock)} Lokaler Modus — erst in der online-App werden Eingaben für alle gespeichert.</div>`:''}
       ${rows}
+      <button class="set-link" style="margin-top:10px" onclick="openAdminUsers()"><span>Nutzer &amp; Moderation</span>${svg(I.chevR)}</button>
       <button class="btn btn-soft btn-wide btn-sm" style="margin-top:10px" onclick="closeSheet()">Schließen</button>
     </div>`);
 }
@@ -1892,6 +1907,71 @@ async function adminClearMatch(){
   toast('Spiel zurückgesetzt'); refreshAfterAdmin(); renderAdminMatch();
 }
 function refreshAfterAdmin(){ const pill=document.querySelector('.hd-pts .v'); if(pill)pill.textContent=totalPoints(); persist(); }
+/* ============================================================ ADMIN — Nutzer & Moderation ============================================================ */
+function renderBanned(){
+  app().innerHTML=`<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 26px;text-align:center">
+    <div><div style="font-family:var(--fd);font-weight:900;font-size:27px;color:var(--ink)">Account gesperrt</div>
+    <p style="color:var(--ink-2);margin-top:12px;line-height:1.55;max-width:300px">Dein Zugang zu Golazo wurde gesperrt. Wende dich an den Betreiber deiner Liga, wenn du denkst, das sei ein Fehler.</p></div></div>`;
+}
+async function adminFetchUsers(){
+  if(!CLOUD||!sb){ S.admUsers=[]; S.admUsersErr='Nur im Online-Modus.'; return; }
+  try{ const {data,error}=await sb.rpc('admin_all_users');
+    if(error){ S.admUsers=[]; S.admUsersErr='RPC-Fehler: '+(error.message||error.code||'?'); return; }
+    S.admUsers=(data||[]).map(u=>({uid:u.uid,uname:u.uname,fav:u.fav,banned:u.banned,state:u.state||{}}))
+      .sort((a,b)=>pointsForState(b.state)-pointsForState(a.state)); S.admUsersErr=null;
+  }catch(e){ S.admUsers=[]; S.admUsersErr='Ausnahme: '+String(e&&e.message||e); }
+}
+function openAdminUsers(){ S.admUsers=null; S.admUsersErr=null; renderAdminUsers(); adminFetchUsers().then(renderAdminUsers); }
+function renderAdminUsers(){
+  let body;
+  if(S.admUsers==null){ body=`<p class="note" style="text-align:center;margin-top:14px">Lade Nutzer…</p>`; }
+  else if(S.admUsersErr){ body=`<div class="adm-note">${svg(I.clock)} ${esc(S.admUsersErr)}</div>`; }
+  else if(!S.admUsers.length){ body=`<div class="adm-note">${svg(I.clock)} Keine Nutzer sichtbar. Bist du als Admin registriert? Trage deine User-ID (unten) einmalig in <b>app_admins</b> ein.</div>`; }
+  else {
+    body=S.admUsers.map(u=>{
+      const pts=pointsForState(u.state||{}); const fav=u.state&&u.state.me&&u.state.me.fav;
+      const av=fav&&TEAMS[fav]?`<div class="lb-av flag-av" style="width:30px;height:30px">${fi(fav)}</div>`:`<div class="lb-av" style="width:30px;height:30px">${esc((u.uname||'?')[0].toUpperCase())}</div>`;
+      return `<button class="am-row" onclick="openAdminUser('${u.uid}')"><div class="am-line">
+        <span class="am-tm">${av}<span class="am-nm">${esc(u.uname||'Spieler')}${u.banned?' <span class="ban-badge">gesperrt</span>':''}</span></span>
+        <span class="am-res set" style="background:${u.banned?'var(--muted)':'var(--accent)'}">${pts}</span></div></button>`;
+    }).join('');
+  }
+  sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>Nutzer & Moderation</h2><div class="ss">${(S.admUsers&&S.admUsers.length)?S.admUsers.length+' Konten':'Tipps ansehen · sperren'}</div></div>
+    <div class="sheet-bd">${body}
+      <div class="idbox">Deine User-ID (für Admin-Freischaltung):<code>${USER?esc(USER.id):'—'}</code><button class="btn btn-soft btn-sm" style="margin-top:9px" onclick="adminCopyId()">${svg(I.share)} ID kopieren</button></div>
+      <button class="btn btn-soft btn-wide btn-sm" style="margin-top:10px" onclick="renderAdminList()">${svg(I.chevL)} Zurück</button>
+    </div>`);
+}
+function openAdminUser(uid){
+  const u=(S.admUsers||[]).find(x=>x.uid===uid); if(!u)return;
+  const st=u.state||{}, preds=st.preds||{}, stars=st.stars||{};
+  let tips='';
+  DB.fixtures.forEach(f=>{ const p=preds[f.id]; if(!p||p.h==null||p.a==null)return;
+    const sp=stars[f.id]?pl(stars[f.id]):null;
+    tips+=`<div class="utip"><span class="utip-m">${fi(f.home)} ${esc(T(f.home).n)} <b>${p.h}:${p.a}</b> ${esc(T(f.away).n)} ${fi(f.away)}</span>${sp?`<span class="utip-s">★ ${esc(lastName(sp.name))}</span>`:''}</div>`;
+  });
+  if(!tips)tips=`<p class="note">Noch keine Tipps abgegeben.</p>`;
+  const sc=st.special&&st.special.scorer?pl(st.special.scorer):null, as=st.special&&st.special.assist?pl(st.special.assist):null;
+  const special=(sc||as)?`<div class="adm-h" style="margin-top:18px">Sondertipps</div><div class="utip"><span class="utip-m">${sc?`Torschützenkönig: <b>${esc(sc.name)}</b>`:''}${sc&&as?' · ':''}${as?`Vorlagen: <b>${esc(as.name)}</b>`:''}</span></div>`:'';
+  sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2 style="margin:0">${esc(u.uname||'Spieler')}</h2><div class="ss">${pointsForState(st)} Punkte · ${u.banned?'gesperrt':'aktiv'}</div></div>
+    <div class="sheet-bd">
+      <button class="btn ${u.banned?'btn-pri':'btn-out'} btn-wide" onclick="adminToggleBan('${u.uid}',${u.banned?'false':'true'})">${u.banned?svg(I.check)+' Account entsperren':svg(I.x)+' Account sperren'}</button>
+      <div class="adm-h" style="margin-top:18px">Tipps (${Object.keys(preds).length})</div>
+      ${tips}
+      ${special}
+      <button class="btn btn-soft btn-wide btn-sm" style="margin-top:14px" onclick="openAdminUsers()">${svg(I.chevL)} Zurück zur Liste</button>
+    </div>`);
+}
+function adminToggleBan(uid,ban){
+  confirmSheet(ban?'Account sperren?':'Account entsperren?',
+    ban?'Der Nutzer wird gesperrt, aus allen Ligen entfernt und kann nichts mehr speichern.':'Der Nutzer kann Golazo wieder nutzen (muss Ligen neu beitreten).',
+    ban?'Sperren':'Entsperren', async()=>{
+      if(CLOUD&&sb){ try{ const {error}=await sb.rpc('admin_set_ban',{p_uid:uid,p_banned:ban}); if(error){toast('Fehler: '+(error.message||error.code||'?'));return;} }catch(e){toast('Fehler beim Sperren');return;} }
+      toast(ban?'Account gesperrt':'Account entsperrt'); await adminFetchUsers(); openAdminUsers();
+    });
+}
+function adminCopyId(){ try{ navigator.clipboard.writeText(USER?USER.id:''); toast('User-ID kopiert'); }catch(e){ toast(USER?USER.id:''); } }
+
 
 
 /* ---------- sheet ---------- */
