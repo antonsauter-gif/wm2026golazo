@@ -1170,7 +1170,7 @@ async function doJoin(){
   DB.league={name:lg.name,code,role:'member',members:lg.members.slice()};
   await persist(); enterApp();
 }
-async function copyCode(){ const base=location.origin+location.pathname; const link=`${base}?code=${DB.league.code}&ref=${(USER&&USER.id)||''}`; const msg=`⚽ Mach mit bei meiner Golazo-Tipprunde "${DB.league.name}"!\nLiga-Code: ${DB.league.code}\n${link}`; try{ await navigator.clipboard.writeText(msg); toast('Einladung kopiert — ab in die Gruppe!'); }catch(e){ toast('Code: '+DB.league.code); } }
+async function copyCode(){ const base=location.origin+location.pathname; const link=`${base}?code=${DB.league.code}&ref=${(USER&&USER.id)||''}`; const text=`⚽ Mach mit bei meiner Golazo-Tipprunde "${DB.league.name}"! Liga-Code: ${DB.league.code}`; if(navigator.share){ try{ await navigator.share({title:'Golazo · '+DB.league.name, text:text, url:link}); }catch(e){ if(e&&e.name!=='AbortError'){ try{ await navigator.clipboard.writeText(text+' '+link); toast('Link kopiert'); }catch(_){ toast('Code: '+DB.league.code); } } } return; } try{ await navigator.clipboard.writeText(text+' '+link); toast('Einladung kopiert — ab in die Gruppe!'); }catch(e){ toast('Code: '+DB.league.code); } }
 function enterApp(){ S.tab='heute'; render(); }
 
 /* ---------- shell ---------- */
