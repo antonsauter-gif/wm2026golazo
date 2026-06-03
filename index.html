@@ -708,6 +708,7 @@
   .utip-m{ display:flex;align-items:center;gap:5px;flex-wrap:wrap;line-height:1.5; }
   .utip-s{ color:var(--accent);font-weight:700;flex-shrink:0; }
   .utip .flag{ width:18px;height:13px;border-radius:2px; }
+  .am-mail{ font-size:11px;color:var(--ink-3);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px; }
 </style>
 </head>
 <body>
@@ -733,7 +734,6 @@ const KEY='wm26:v4';
    ============================================================ */
 const SUPABASE = { url:'https://xjythzzkzjxyvhoctnyh.supabase.co', anonKey:'sb_publishable_Ep8m-ecGV5qvnrdUgdLelA_r8qWmo01' };
 let sb=null, CLOUD=false, USER=null;
-const ADMIN_PIN='2026'; // <-- DEINEN eigenen PIN hier eintragen
 const REF_BONUS=1;
 let PENDING_REF=null, PENDING_CODE=null;
 const EMPTY_DB=()=>({me:null,fixtures:[],preds:{},results:{},trio:{},stars:{},league:null,special:{},refPts:0});
@@ -836,7 +836,7 @@ async function doSignup(){ const email=($('#au-mail').value||'').trim(), pw=$('#
 async function doLogin(){ const email=($('#au-mail').value||'').trim(), pw=$('#au-pw').value||''; if(!email||!pw)return authErr('E-Mail und Passwort eingeben'); authErr('…');
   let r; try{ r=await sb.auth.signInWithPassword({email,password:pw}); }catch(e){ return authErr('Keine Verbindung — Internet prüfen und nochmal.'); }
   if(r.error)return authErr(authMsg(r.error.message)); USER=r.data.session.user; await afterAuth(); }
-async function afterAuth(){ const FX=fxList(); await loadCloud(FX); await loadReferrals(); if(DB.banned){renderBanned();return;} if(!DB.me||!DB.league){ renderOnboard('welcome'); return;} await ensureMembership(); S.tab='heute'; render(); persist(); }
+async function afterAuth(){ const FX=fxList(); await loadCloud(FX); await loadReferrals(); await loadAdminFlag(); if(DB.banned){renderBanned();return;} if(!DB.me||!DB.league){ renderOnboard('welcome'); return;} await ensureMembership(); S.tab='heute'; render(); persist(); }
 async function doLogout(){ try{ await sb.auth.signOut(); }catch(e){} USER=null; DB=EMPTY_DB(); closeSheet(); renderAuth('login'); }
 /* ============================================================
    OFFIZIELLE ERGEBNISSE — von dir (dem Betreiber) gepflegt.
@@ -1069,6 +1069,7 @@ function toast(m){let t=$('#toast');if(!t){t=document.createElement('div');t.id=
 function confetti(n,oy){if(DB.fxOn===false)return;const host=app();if(!host)return;const layer=document.createElement('div');layer.className='fx';host.appendChild(layer);const cx=host.clientWidth/2,cy=host.clientHeight*(oy||.4);const cols=['#E90052','#963CFF','#22B2F0','#37003C'];n=n||22;for(let i=0;i<n;i++){const p=document.createElement('span');p.className='fx-b';p.style.background=cols[i%4];const w=5+Math.random()*6;p.style.width=w+'px';p.style.height=(w*1.6)+'px';p.style.left=cx+'px';p.style.top=cy+'px';layer.appendChild(p);const a=Math.random()*Math.PI*2,d=80+Math.random()*150,dx=Math.cos(a)*d,dy=Math.sin(a)*d-60,r=Math.random()*720-360;p.animate([{transform:'translate(0,0) rotate(0)',opacity:1},{transform:`translate(${dx}px,${dy+160}px) rotate(${r}deg)`,opacity:0}],{duration:900+Math.random()*500,easing:'cubic-bezier(.2,.6,.3,1)',fill:'forwards'});}setTimeout(()=>layer.remove(),1600);}
 
 async function loadReferrals(){ if(!CLOUD||!sb||!USER)return; try{ const {data}=await sb.rpc('my_referrals'); DB.refPts=((data||0))*REF_BONUS; }catch(e){ console.warn('refs',e); } }
+async function loadAdminFlag(){ DB.isAdmin=false; if(!CLOUD||!sb||!USER)return; try{ const {data}=await sb.rpc('is_app_admin'); DB.isAdmin=!!data; }catch(e){ console.warn('admflag',e); } }
 async function boot(){
   buildPlayers();
   try{ const u=new URLSearchParams(location.search); const rf=u.get('ref'), cd=u.get('code'); if(rf)PENDING_REF=rf; if(cd)PENDING_CODE=cd.toUpperCase(); }catch(e){}
@@ -1076,7 +1077,7 @@ async function boot(){
   initCloud();
   if(CLOUD){
     try{ const {data}=await sb.auth.getSession(); const session=data&&data.session;
-      if(session){ USER=session.user; await loadCloud(FX); await loadReferrals(); if(DB.banned){renderBanned();return;} if(!DB.me||!DB.league){renderOnboard('welcome');return;} await ensureMembership(); render(); persist(); return; } }catch(e){ console.warn('session',e); }
+      if(session){ USER=session.user; await loadCloud(FX); await loadReferrals(); await loadAdminFlag(); if(DB.banned){renderBanned();return;} if(!DB.me||!DB.league){renderOnboard('welcome');return;} await ensureMembership(); render(); persist(); return; } }catch(e){ console.warn('session',e); }
     renderAuth('signup'); return;
   }
   const saved=await sget(KEY);
@@ -1693,8 +1694,7 @@ function openSettings(){
       <div class="set-info">${svg(I.trophy)}<div><b>${esc(DB.league.name)}</b><br>Code: <b style="letter-spacing:.12em">${DB.league.code}</b></div></div>
       <button class="btn btn-out btn-wide btn-sm" onclick="copyCode()">${svg(I.share)} Liga-Code teilen</button>
       <button class="btn btn-soft btn-wide btn-sm" style="margin-top:8px" onclick="leaveLeague()">Liga verlassen</button>`:''}
-      <div class="set-sec">Betreiber</div>
-      <button class="set-link" onclick="openAdminGate()"><span>Admin · Ergebnisse &amp; Leistungen</span>${svg(I.chevR)}</button>
+      ${DB.isAdmin?`<div class="set-sec">Betreiber</div><button class="set-link" onclick="openAdminGate()"><span>Admin · Ergebnisse &amp; Leistungen</span>${svg(I.chevR)}</button>`:''}
       <div class="set-sec">Über &amp; Rechtliches</div>
       <button class="set-link" onclick="openHowItWorks()"><span>So funktionieren die Punkte</span>${svg(I.chevR)}</button>
       <button class="set-link" onclick="openLegal()"><span>Rechtliche Hinweise &amp; Datenschutz</span>${svg(I.chevR)}</button>
@@ -1738,24 +1738,10 @@ function openLegal(){
     </div>`);
 }
 /* ============================================================ ADMIN — Ergebnisse & Star-Leistungen (nur Betreiber) ============================================================ */
-function openAdminGate(){
-  if(S.admin){ openAdmin(); return; }
-  sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>Admin</h2><div class="ss">Nur für den Betreiber · PIN eingeben</div></div>
-    <div class="sheet-bd">
-      <div class="field"><label>Admin-PIN</label><input id="adm-pin" type="password" inputmode="numeric" autocomplete="off" placeholder="PIN" onkeydown="if(event.key==='Enter')adminCheckPin()"></div>
-      <div id="adm-pin-err" class="auth-err"></div>
-      <button class="btn btn-pri btn-wide" onclick="adminCheckPin()">${svg(I.check)} Entsperren</button>
-      <p class="note" style="margin-top:12px">Hier trägst du nach jedem Spiel das Ergebnis und die Star-Leistungen ein. Alle Mitglieder bekommen sie automatisch über die Datenbank.</p>
-    </div>`);
-}
-function adminCheckPin(){
-  const v=($('#adm-pin').value||'').trim();
-  if(v!==ADMIN_PIN){ const e=$('#adm-pin-err'); if(e){e.textContent='Falscher PIN.';e.style.display='block';} return; }
-  S.admin=true; openAdmin();
-}
+function openAdminGate(){ if(!DB.isAdmin)return toast('Kein Admin-Zugang — nur für den Betreiber.'); openAdmin(); }
 let _admT=null;
 function admDeb(fn){clearTimeout(_admT);_admT=setTimeout(fn,450);}
-function openAdmin(){ S.admMd=S.admMd||1; S.admFilter=S.admFilter||'all'; renderAdminList(); }
+function openAdmin(){ if(!DB.isAdmin)return; S.admMd=S.admMd||1; S.admFilter=S.admFilter||'all'; renderAdminList(); }
 function setAdmMd(m){ S.admMd=m; renderAdminList(); }
 function setAdmFilter(x){ S.admFilter=x; renderAdminList(); }
 function renderAdminList(){
@@ -1917,7 +1903,7 @@ async function adminFetchUsers(){
   if(!CLOUD||!sb){ S.admUsers=[]; S.admUsersErr='Nur im Online-Modus.'; return; }
   try{ const {data,error}=await sb.rpc('admin_all_users');
     if(error){ S.admUsers=[]; S.admUsersErr='RPC-Fehler: '+(error.message||error.code||'?'); return; }
-    S.admUsers=(data||[]).map(u=>({uid:u.uid,uname:u.uname,fav:u.fav,banned:u.banned,state:u.state||{}}))
+    S.admUsers=(data||[]).map(u=>({uid:u.uid,uname:u.uname,email:u.email||'',fav:u.fav,banned:u.banned,state:u.state||{}}))
       .sort((a,b)=>pointsForState(b.state)-pointsForState(a.state)); S.admUsersErr=null;
   }catch(e){ S.admUsers=[]; S.admUsersErr='Ausnahme: '+String(e&&e.message||e); }
 }
@@ -1932,7 +1918,7 @@ function renderAdminUsers(){
       const pts=pointsForState(u.state||{}); const fav=u.state&&u.state.me&&u.state.me.fav;
       const av=fav&&TEAMS[fav]?`<div class="lb-av flag-av" style="width:30px;height:30px">${fi(fav)}</div>`:`<div class="lb-av" style="width:30px;height:30px">${esc((u.uname||'?')[0].toUpperCase())}</div>`;
       return `<button class="am-row" onclick="openAdminUser('${u.uid}')"><div class="am-line">
-        <span class="am-tm">${av}<span class="am-nm">${esc(u.uname||'Spieler')}${u.banned?' <span class="ban-badge">gesperrt</span>':''}</span></span>
+        <span class="am-tm">${av}<span style="min-width:0;display:flex;flex-direction:column"><span class="am-nm">${esc(u.uname||'Spieler')}${u.banned?' <span class="ban-badge">gesperrt</span>':''}</span>${u.email?`<span class="am-mail">${esc(u.email)}</span>`:''}</span></span>
         <span class="am-res set" style="background:${u.banned?'var(--muted)':'var(--accent)'}">${pts}</span></div></button>`;
     }).join('');
   }
@@ -1953,7 +1939,7 @@ function openAdminUser(uid){
   if(!tips)tips=`<p class="note">Noch keine Tipps abgegeben.</p>`;
   const sc=st.special&&st.special.scorer?pl(st.special.scorer):null, as=st.special&&st.special.assist?pl(st.special.assist):null;
   const special=(sc||as)?`<div class="adm-h" style="margin-top:18px">Sondertipps</div><div class="utip"><span class="utip-m">${sc?`Torschützenkönig: <b>${esc(sc.name)}</b>`:''}${sc&&as?' · ':''}${as?`Vorlagen: <b>${esc(as.name)}</b>`:''}</span></div>`:'';
-  sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2 style="margin:0">${esc(u.uname||'Spieler')}</h2><div class="ss">${pointsForState(st)} Punkte · ${u.banned?'gesperrt':'aktiv'}</div></div>
+  sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2 style="margin:0">${esc(u.uname||'Spieler')}</h2><div class="ss">${u.email?esc(u.email)+' · ':''}${pointsForState(st)} Punkte · ${u.banned?'gesperrt':'aktiv'}</div></div>
     <div class="sheet-bd">
       <button class="btn ${u.banned?'btn-pri':'btn-out'} btn-wide" onclick="adminToggleBan('${u.uid}',${u.banned?'false':'true'})">${u.banned?svg(I.check)+' Account entsperren':svg(I.x)+' Account sperren'}</button>
       <div class="adm-h" style="margin-top:18px">Tipps (${Object.keys(preds).length})</div>
