@@ -687,6 +687,8 @@
 .cardchip.r{background:#E53935}
 .cardchip.sm{width:9px;height:12px;vertical-align:-2px;margin-right:1px}
   .view-welt .view-title{ background:var(--grad-holo); }
+  .lb-av.flag-av{ background:none;overflow:hidden;padding:0; }
+  .lb-av.flag-av .flag{ width:100%;height:100%;border-radius:50%;object-fit:cover;box-shadow:none; }
 </style>
 </head>
 <body>
@@ -751,7 +753,7 @@ async function fetchLeaderboard(){
     const list=rows||[];
     if(list.length){ DB.league.members=list.map(r=>r.uname||'Spieler'); }
     S.lbData=list.map(r=>{const sObj=r.ustate||{};
-      return {id:r.uid,n:r.uname||'Spieler',pts:pointsForState(sObj),tip:tipPointsForState(sObj),star:starPointsForState(sObj),st:sObj,me:r.uid===USER.id};})
+      return {id:r.uid,n:r.uname||'Spieler',fav:(sObj.me&&sObj.me.fav)||'',pts:pointsForState(sObj),tip:tipPointsForState(sObj),star:starPointsForState(sObj),st:sObj,me:r.uid===USER.id};})
       .sort((a,b)=>b.pts-a.pts||a.n.localeCompare(b.n));
   }catch(e){ console.warn('leaderboard',e); S.lbData=null; S.lbErr='Ausnahme: '+(e&&e.message||String(e)); }
 }
@@ -1441,13 +1443,13 @@ function viewRangliste(){
       if(mcount<=1)note=`<div class="invite-hint">${svg(I.share)}<div><b>Noch alleine hier.</b> Teile den Liga-Code — sobald Freunde beitreten, erscheinen sie in der Tabelle.</div></div>`;
     } else {
       mcount=(DB.league&&DB.league.members)?DB.league.members.length:1;
-      rows=lbRow({n:meName,pts:mine,tip:myTip,star:myStar,me:true},1);
+      rows=lbRow({n:meName,fav:(DB.me&&DB.me.fav)||'',pts:mine,tip:myTip,star:myStar,me:true},1);
       note=`<p class="note" style="text-align:center;margin-top:12px">Lade Mitglieder…</p>`;
     }
   } else {
     const members=(DB.league&&DB.league.members&&DB.league.members.length)?DB.league.members:[meName];
     const others=members.filter(n=>n!==meName); mcount=members.length;
-    rows=lbRow({n:meName,pts:mine,tip:myTip,star:myStar,me:true},1);
+    rows=lbRow({n:meName,fav:(DB.me&&DB.me.fav)||'',pts:mine,tip:myTip,star:myStar,me:true},1);
     others.forEach(n=>{ rows+=lbRow({n,pts:null},null); });
     note=others.length
       ?`<p class="note" style="text-align:center;margin-top:12px">Punkte anderer Mitglieder werden synchronisiert, sobald Golazo online läuft.</p>`
@@ -1502,7 +1504,7 @@ function lbRow(p,rank,clickable){
   return `<div class="lb-row${p.me?' me':''}${lead}"${click}>
     <div class="lb-rank">${rank==null?'–':rank}</div>
     <div class="lb-player">
-      <div class="lb-av">${(p.n||'?')[0].toUpperCase()}</div>
+      ${p.fav&&TEAMS[p.fav]?`<div class="lb-av flag-av">${fi(p.fav)}</div>`:`<div class="lb-av">${(p.n||'?')[0].toUpperCase()}</div>`}
       <div class="lb-nm">${esc(p.n)} ${meTag}</div>
     </div>
     <div class="lb-stat">${p.tip!=null?p.tip:'–'}</div>
@@ -1519,7 +1521,7 @@ async function fetchGlobalBoard(){
     const {data:rows,error}=await sb.rpc('global_board');
     if(error){ console.warn('global',error); S.gbData=null; S.gbErr='RPC-Fehler: '+(error.message||error.code||'?'); return; }
     const list=rows||[];
-    S.gbData=list.map(r=>({id:r.uid,n:r.uname||'Spieler',pts:(r.total||0),tip:(r.tip||0),star:(r.star||0),me:!!(USER&&r.uid===USER.id)}))
+    S.gbData=list.map(r=>({id:r.uid,n:r.uname||'Spieler',fav:r.fav||'',pts:(r.total||0),tip:(r.tip||0),star:(r.star||0),me:!!(USER&&r.uid===USER.id)}))
       .sort((a,b)=>b.pts-a.pts||a.n.localeCompare(b.n));
   }catch(e){ console.warn('global',e); S.gbData=null; S.gbErr='Ausnahme: '+(e&&e.message||String(e)); }
 }
