@@ -686,6 +686,7 @@
 .cardchip.y{background:#FBC02D}
 .cardchip.r{background:#E53935}
 .cardchip.sm{width:9px;height:12px;vertical-align:-2px;margin-right:1px}
+  .view-welt .view-title{ background:var(--grad-holo); }
 </style>
 </head>
 <body>
@@ -811,7 +812,7 @@ async function doSignup(){ const email=($('#au-mail').value||'').trim(), pw=$('#
 async function doLogin(){ const email=($('#au-mail').value||'').trim(), pw=$('#au-pw').value||''; if(!email||!pw)return authErr('E-Mail und Passwort eingeben'); authErr('…');
   let r; try{ r=await sb.auth.signInWithPassword({email,password:pw}); }catch(e){ return authErr('Keine Verbindung — Internet prüfen und nochmal.'); }
   if(r.error)return authErr(authMsg(r.error.message)); USER=r.data.session.user; await afterAuth(); }
-async function afterAuth(){ const FX=fxList(); await loadCloud(FX); if(!DB.me||!DB.league){ renderOnboard('welcome'); return;} await ensureMembership(); S.tab='heute'; render(); }
+async function afterAuth(){ const FX=fxList(); await loadCloud(FX); if(!DB.me||!DB.league){ renderOnboard('welcome'); return;} await ensureMembership(); S.tab='heute'; render(); persist(); }
 async function doLogout(){ try{ await sb.auth.signOut(); }catch(e){} USER=null; DB=EMPTY_DB(); closeSheet(); renderAuth('login'); }
 /* ============================================================
    OFFIZIELLE ERGEBNISSE — von dir (dem Betreiber) gepflegt.
@@ -944,6 +945,7 @@ const I={
   gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>',
   clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/>',
   house:'<path d="M3 10.8L12 3.5l9 7.3"/><path d="M5.2 9.4V20a1 1 0 001 1h11.6a1 1 0 001-1V9.4"/>',
+  globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 2.6 15.4 0 18M12 3c-2.6 2.6-2.6 15.4 0 18"/>',
   shirt:'<path d="M7.5 3.5l-4 3 2.2 3.2 1.8-1V20a1 1 0 001 1h7a1 1 0 001-1V8.7l1.8 1 2.2-3.2-4-3a3.2 3.2 0 01-6 0z"/>'
 };
 const svg=(p,c)=>`<svg class="${c||''}" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
@@ -1048,7 +1050,7 @@ async function boot(){
   initCloud();
   if(CLOUD){
     try{ const {data}=await sb.auth.getSession(); const session=data&&data.session;
-      if(session){ USER=session.user; await loadCloud(FX); if(!DB.me||!DB.league){renderOnboard('welcome');return;} await ensureMembership(); render(); return; } }catch(e){ console.warn('session',e); }
+      if(session){ USER=session.user; await loadCloud(FX); if(!DB.me||!DB.league){renderOnboard('welcome');return;} await ensureMembership(); render(); persist(); return; } }catch(e){ console.warn('session',e); }
     renderAuth('signup'); return;
   }
   const saved=await sget(KEY);
@@ -1058,7 +1060,7 @@ async function boot(){
   if(!DB.me){ persist(); renderOnboard(); return; }
   persist(); render();
 }
-async function persist(){ if(CLOUD&&USER&&sb){ try{ await sb.from('user_state').upsert({user_id:USER.id,name:(DB.me&&DB.me.name)||'',state:{me:DB.me,preds:DB.preds,stars:DB.stars,trio:DB.trio,league:DB.league,fxOn:DB.fxOn},updated_at:new Date().toISOString()}); }catch(e){ console.warn('persist',e); } } else { await sset(KEY,DB); } }
+async function persist(){ if(CLOUD&&USER&&sb){ try{ await sb.from('user_state').upsert({user_id:USER.id,name:(DB.me&&DB.me.name)||'',state:{me:DB.me,preds:DB.preds,stars:DB.stars,trio:DB.trio,league:DB.league,fxOn:DB.fxOn,pts:{tip:myTipPoints(),star:myStarPoints()}},updated_at:new Date().toISOString()}); }catch(e){ console.warn('persist',e); } } else { await sset(KEY,DB); } }
 
 /* ---------- onboarding ---------- */
 function detectTz(){try{return Intl.DateTimeFormat().resolvedOptions().timeZone||'';}catch(e){return '';}}
@@ -1154,16 +1156,16 @@ function enterApp(){ S.tab='heute'; render(); }
 /* ---------- shell ---------- */
 function render(){
   ensureFixtures();
-  const body=S.tab==='heute'?viewHeute():S.tab==='gruppen'?viewGruppen():S.tab==='stars'?viewStars():viewRangliste();
+  const body=S.tab==='heute'?viewHeute():S.tab==='gruppen'?viewGruppen():S.tab==='stars'?viewStars():S.tab==='welt'?viewWelt():viewRangliste();
   app().innerHTML=`
     <div class="hd"><div class="hd-row"><div class="brand">${MARK}<span class="wm">Golazo</span></div>
       <div class="hd-right"><div class="hd-pts">${svg(I.bolt,'pts-ic')}<span class="v">${totalPoints()}</span></div><button class="gear" onclick="openSettings()" aria-label="Einstellungen">${svg(I.gear)}</button></div></div></div>
     <div class="view view-${S.tab}" id="view">${body}</div>
-    <nav class="tabs">${tab('heute',I.house,'Heute')}${tab('gruppen',I.cal,'Gruppen')}${tab('stars',I.star,'Stars')}${tab('rangliste',I.trophy,'Liga')}</nav>
+    <nav class="tabs">${tab('heute',I.house,'Heute')}${tab('gruppen',I.cal,'Gruppen')}${tab('stars',I.star,'Stars')}${tab('rangliste',I.trophy,'Liga')}${tab('welt',I.globe,'Welt')}</nav>
     <div class="scrim" id="scrim" onclick="closeSheet()"></div><div class="sheet" id="sheet"></div>`;
 }
 const tab=(id,ic,l)=>`<button class="tab ${S.tab===id?'on':''}" onclick="go('${id}')">${svg(ic)}<span>${l}</span></button>`;
-function go(t){S.tab=t;if(t==='rangliste'&&CLOUD)S.lbData=null;render();const v=document.getElementById('view');if(v)v.scrollTop=0;if(t==='rangliste'&&CLOUD){fetchLeaderboard().then(()=>render());}}
+function go(t){S.tab=t;if(t==='rangliste'&&CLOUD)S.lbData=null;if(t==='welt'&&CLOUD)S.gbData=null;render();const v=document.getElementById('view');if(v)v.scrollTop=0;if(t==='rangliste'&&CLOUD){fetchLeaderboard().then(()=>render());}if(t==='welt'&&CLOUD){fetchGlobalBoard().then(()=>render());}}
 
 /* ---------- scoring ---------- */
 function scorePred(p,r){if(!r||!p||p.h==null||p.a==null)return null;if(p.h===r.h&&p.a===r.a)return 5;const a=Math.sign(p.h-p.a),b=Math.sign(r.h-r.a);return a===b?2:0;}
@@ -1509,6 +1511,44 @@ function lbRow(p,rank,clickable){
   </div>`;
 }
 
+/* ============================================================ WELT-RANGLISTE (global, alle Konten) ============================================================ */
+async function fetchGlobalBoard(){
+  S.gbErr=null;
+  if(!CLOUD){ S.gbData=null; S.gbErr='Nur im Online-Modus.'; return; }
+  try{
+    const {data:rows,error}=await sb.rpc('global_board');
+    if(error){ console.warn('global',error); S.gbData=null; S.gbErr='RPC-Fehler: '+(error.message||error.code||'?'); return; }
+    const list=rows||[];
+    S.gbData=list.map(r=>({id:r.uid,n:r.uname||'Spieler',pts:(r.total||0),tip:(r.tip||0),star:(r.star||0),me:!!(USER&&r.uid===USER.id)}))
+      .sort((a,b)=>b.pts-a.pts||a.n.localeCompare(b.n));
+  }catch(e){ console.warn('global',e); S.gbData=null; S.gbErr='Ausnahme: '+(e&&e.message||String(e)); }
+}
+function reloadGb(){ if(!CLOUD)return; toast('Aktualisiere…'); fetchGlobalBoard().then(render); }
+function viewWelt(){
+  if(!CLOUD){
+    return `<div class="view-title">Welt-Rangliste<div class="vt-sub">Nur im Online-Modus</div></div>
+      <div class="adm-note">${svg(I.clock)} Die globale Rangliste gibt es nur in der online-deployten App mit Konto.</div>`;
+  }
+  let rows='', cnt=0, myRank=null, note='';
+  if(S.gbData){
+    cnt=S.gbData.length;
+    const mi=S.gbData.findIndex(p=>p.me); myRank=mi>=0?mi+1:null;
+    S.gbData.forEach((p,i)=>{ rows+=lbRow(p,i+1,false); });
+    if(!cnt){ rows=''; note=`<p class="note" style="text-align:center;margin-top:12px">Noch keine Spieler.</p>`; }
+  } else if(S.gbErr){
+    note=`<div class="adm-note">${svg(I.clock)} ${esc(S.gbErr)}</div>`;
+  } else {
+    note=`<p class="note" style="text-align:center;margin-top:12px">Lade Welt-Rangliste…</p>`;
+  }
+  const sub = myRank?`Dein Platz: ${myRank} von ${cnt}`:(cnt?`${cnt} Spieler weltweit`:'Alle Golazo-Spieler');
+  let html=`<div class="view-title">Welt-Rangliste<div class="vt-sub">${sub}</div></div>`;
+  html+=`<div class="lb-tbl"><div class="lb-th"><div class="lb-th-rank">#</div><div class="lb-th-name">Spieler</div><div class="lb-th-stat">Tipps</div><div class="lb-th-stat">Stars</div><div class="lb-th-pts">Pkt</div></div>${rows}</div>`;
+  html+=note;
+  html+=`<button class="lb-refresh" style="margin:8px auto 0;display:flex" onclick="reloadGb()">${svg(I.clock)} Aktualisieren</button>`;
+  html+=`<p class="note" style="text-align:center;margin-top:14px">Hier erscheint jeder, der ein Golazo-Konto hat — über alle Ligen hinweg.</p>`;
+  return html;
+}
+
 /* ---------- settings & legal ---------- */
 function openSettings(){
   const fav=DB.me&&DB.me.fav;
@@ -1739,7 +1779,7 @@ async function adminClearMatch(){
   delete PERF[mk];
   toast('Spiel zurückgesetzt'); refreshAfterAdmin(); renderAdminMatch();
 }
-function refreshAfterAdmin(){ const pill=document.querySelector('.hd-pts .v'); if(pill)pill.textContent=totalPoints(); }
+function refreshAfterAdmin(){ const pill=document.querySelector('.hd-pts .v'); if(pill)pill.textContent=totalPoints(); persist(); }
 
 
 /* ---------- sheet ---------- */
