@@ -678,6 +678,14 @@
 .ga-lbl{font:700 15px var(--fd);color:var(--ink)}
 .ppl-del{width:30px;height:30px;border-radius:9px;background:rgba(233,0,82,.1);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:none}
 .ppl-del svg{width:15px;height:15px}
+
+.adm-btns{display:flex;gap:8px;margin-top:10px}
+.adm-btns .btn{flex:1;margin:0}
+.adm-btns .btn.off{opacity:.45}
+.cardchip{width:13px;height:17px;border-radius:2.5px;display:inline-block;vertical-align:-3px;margin-right:7px}
+.cardchip.y{background:#FBC02D}
+.cardchip.r{background:#E53935}
+.cardchip.sm{width:9px;height:12px;vertical-align:-2px;margin-right:1px}
 </style>
 </head>
 <body>
@@ -711,7 +719,7 @@ function ensureFixtures(){ if(!DB.fixtures||!DB.fixtures.length){ DB.fixtures=fx
 async function loadResultsCloud(FX){
   DB.results={};
   try{ const {data:res}=await sb.from('results').select('match,h,a'); const by={}; (res||[]).forEach(r=>{by[r.match]={h:r.h,a:r.a};}); FX.forEach(f=>{const r=by[f.home+'-'+f.away]; if(r&&r.h!=null&&r.a!=null)DB.results[f.id]={h:r.h,a:r.a};}); }catch(e){ console.warn('results',e); }
-  try{ const {data:perf}=await sb.from('performances').select('match,player,m,g,a'); PERF={}; (perf||[]).forEach(r=>{ (PERF[r.match]=PERF[r.match]||{})[r.player]={m:r.m||0,g:r.g||0,a:r.a||0}; }); }catch(e){ console.warn('perf',e); }
+  try{ const {data:perf}=await sb.from('performances').select('*'); PERF={}; (perf||[]).forEach(r=>{ (PERF[r.match]=PERF[r.match]||{})[r.player]={m:r.m||0,g:r.g||0,a:r.a||0,y:r.y||0,r:r.r||0}; }); }catch(e){ console.warn('perf',e); }
 }
 async function loadCloud(FX){
   DB=EMPTY_DB(); DB.fixtures=FX;
@@ -722,7 +730,7 @@ async function loadCloud(FX){
   DB.fixtures=FX;
 }
 function tipPointsForState(s){let pts=0;DB.fixtures.forEach(f=>{const v=scorePred((s.preds||{})[f.id],DB.results[f.id]); if(v!=null)pts+=v;});return pts;}
-function memberStarPts(f,p,r){const perf=perfFor(f,p);if(!perf)return null;const mn=perf.m===2?2:(perf.m===1?1:0),gp=(p.pos==='GK'||p.pos==='DEF')?6:(p.pos==='MID'?5:4);let cs=0;if(perf.m===2&&r&&r.h!=null){const conc=(f.home===p.team?r.a:r.h);if(conc===0)cs=(p.pos==='GK'||p.pos==='DEF')?4:(p.pos==='MID'?1:0);}return mn+(perf.g||0)*gp+(perf.a||0)*3+cs;}
+function memberStarPts(f,p,r){const perf=perfFor(f,p);if(!perf)return null;const mn=perf.m===2?2:(perf.m===1?1:0),gp=(p.pos==='GK'||p.pos==='DEF')?6:(p.pos==='MID'?5:4);let cs=0;if(perf.m===2&&r&&r.h!=null){const conc=(f.home===p.team?r.a:r.h);if(conc===0)cs=(p.pos==='GK'||p.pos==='DEF')?4:(p.pos==='MID'?1:0);}return mn+(perf.g||0)*gp+(perf.a||0)*3+cs-(perf.y||0)-(perf.r||0)*3;}
 function starPointsForState(s){let pts=0;DB.fixtures.forEach(f=>{const pid=(s.stars||{})[f.id]; if(!pid)return; const p=pl(pid); if(!p)return; const v=memberStarPts(f,p,DB.results[f.id]); if(v!=null)pts+=v;});return pts;}
 function pointsForState(s){return tipPointsForState(s)+starPointsForState(s);}
 async function ensureMembership(){
@@ -1172,7 +1180,8 @@ function starBreakdown(fid){
   const assists=(perf.a||0)*3;
   let cs=0; const r=DB.results[fid];
   if(perf.m===2&&r&&r.h!=null){const conc=(f.home===p.team?r.a:r.h);if(conc===0)cs=(p.pos==='GK'||p.pos==='DEF')?4:(p.pos==='MID'?1:0);}
-  return {min,goals,assists,cs,total:min+goals+assists+cs};
+  const cards=-(perf.y||0)-(perf.r||0)*3;
+  return {min,goals,assists,cs,cards,total:min+goals+assists+cs+cards};
 }
 function starPoints(fid){const b=starBreakdown(fid);return b?b.total:null;}
 function myStarPoints(){let s=0;DB.fixtures.forEach(f=>{const v=starPoints(f.id);if(v!=null)s+=v;});return s;}
@@ -1399,6 +1408,8 @@ function openStarEval(fid){
     rows+=`<div class="evd"><span>${perf.g||0} Tor${(perf.g||0)===1?'':'e'} <em>· je +${starGoalPts(p.pos)}</em></span><b>${b.goals>0?'+'+b.goals:'0'}</b></div>`;
     rows+=`<div class="evd"><span>${perf.a||0} Assist${(perf.a||0)===1?'':'s'} <em>· je +3</em></span><b>${b.assists>0?'+'+b.assists:'0'}</b></div>`;
     if(b.cs>0)rows+=`<div class="evd"><span>Zu Null</span><b>+${b.cs}</b></div>`;
+    if(perf.y)rows+=`<div class="evd"><span>${perf.y} Gelbe Karte${perf.y===1?'':'n'} <em>· je −1</em></span><b>−${perf.y}</b></div>`;
+    if(perf.r)rows+=`<div class="evd"><span>Rote Karte <em>· −3</em></span><b>−3</b></div>`;
   }
   let status;
   if(b)status=`<div class="ev-total"><span>Punkte für diesen Star</span><b>${b.total}</b></div>`;
@@ -1619,15 +1630,13 @@ function openAdminMatch(fid){
 function admScoreStep(side,d){
   S.admScore[side]=Math.max(0,Math.min(30,(S.admScore[side]||0)+d));
   const el=$('#as-'+side); if(el)el.textContent=S.admScore[side];
-  admDeb(adminCommitScore);
 }
 async function adminCommitScore(){
   const fid=S.admMatchFid, f=DB.fixtures.find(x=>x.id===fid); if(!f)return;
   const mk=matchKey(f), h=S.admScore.h||0, a=S.admScore.a||0;
   DB.results[fid]={h,a};
   if(CLOUD&&sb){ try{ const {error}=await sb.rpc('admin_set_result',{p_match:mk,p_h:h,p_a:a}); if(error){toast('Fehler: '+(error.message||error.code||'?'));return;} }catch(e){toast('Speichern fehlgeschlagen');console.warn(e);return;} }
-  toast(`${h}:${a} gespeichert ✓`); refreshAfterAdmin();
-  const b=$('#adm-clearres'); if(b)b.style.display='flex';
+  toast(`${h}:${a} gespeichert ✓`); refreshAfterAdmin(); renderAdminMatch();
 }
 async function adminClearResult(){
   const fid=S.admMatchFid, f=DB.fixtures.find(x=>x.id===fid); if(!f)return;
@@ -1648,7 +1657,7 @@ function renderAdminMatch(){
     const pool=PLAYERS.filter(p=>p.team===code&&posList.includes(p.pos)).sort((a,b)=>b.prob-a.prob||b.price-a.price);
     const rows=pool.map(p=>{
       const pf=blk[p.name]||blk[lastName(p.name)];
-      const meta=pf?`${pf.m===2?"60'+":pf.m===1?"<60'":'nicht gespielt'} · ${pf.g||0} Tor${(pf.g||0)===1?'':'e'} · ${pf.a||0} Assist${(pf.a||0)===1?'':'s'}`:`${POSLBL[p.pos]}${p.club?' · '+esc(p.club):''}`;
+      const meta=pf?`${pf.m===2?"60'+":pf.m===1?"<60'":'nicht gespielt'} · ${pf.g||0} T · ${pf.a||0} A${pf.y?` · <span class=\"cardchip y sm\"></span>${pf.y}`:''}${pf.r?` · <span class=\"cardchip r sm\"></span>`:''}`:`${POSLBL[p.pos]}${p.club?' · '+esc(p.club):''}`;
       const right=pf?`<span class="ppl-del" onclick="event.stopPropagation();adminQuickDelPerf('${p.id}')">${svg(I.x)}</span>`:`<span class="ppl-add">+</span>`;
       return `<div class="ppl ${pf?'sel':''}" onclick="openAdminPlayerPerf(${fid},'${p.id}')">
         <span class="ppl-fl">${fi(p.team)}</span>
@@ -1665,7 +1674,10 @@ function renderAdminMatch(){
         ${stepper('h')}<span class="as-x">:</span>${stepper('a')}
         <div class="as-side r"><span class="as-nm">${esc(T(f.away).n)}</span><span class="as-fl">${fi(f.away)}</span></div>
       </div>
-      <button id="adm-clearres" class="btn btn-out btn-wide btn-sm" style="margin-top:10px;display:${hasRes?'flex':'none'}" onclick="adminClearResult()">${svg(I.x)} Ergebnis austragen</button>
+      <div class="adm-btns">
+        <button class="btn btn-pri" onclick="adminCommitScore()">${svg(I.check)} Speichern</button>
+        <button class="btn btn-out${hasRes?'':' off'}" onclick="adminClearResult()">${svg(I.x)} Austragen</button>
+      </div>
 
       <div class="adm-h" style="margin-top:22px">Star-Leistungen</div>
       <div class="seg-pos" style="margin-bottom:10px">${['all','GK','DEF','MID','FWD'].map(x=>`<button class="${S.admPos===x?'on':''}" onclick="setAdmPos('${x}')">${x==='all'?'Alle':POSSHORT[x]}</button>`).join('')}</div>
@@ -1680,27 +1692,29 @@ function openAdminPlayerPerf(fid,pid){
   const mk=matchKey(f), blk=PERF[mk]||{};
   const exists=!!(blk[p.name]||blk[lastName(p.name)]);
   const pf=blk[p.name]||blk[lastName(p.name)]||{m:0,g:0,a:0};
-  S.admPP={fid,pid,m:pf.m||0,g:pf.g||0,a:pf.a||0};
-  const ga=(field,lbl)=>`<div class="ga-row"><span class="ga-lbl">${lbl}</span><div class="as-step"><button class="stp" onclick="admGAStep('${field}',-1)">−</button><div class="as-val" id="app-${field}">${pf[field]||0}</div><button class="stp" onclick="admGAStep('${field}',1)">+</button></div></div>`;
+  S.admPP={fid,pid,m:pf.m||0,g:pf.g||0,a:pf.a||0,y:pf.y||0,r:pf.r||0};
+  const ga=(field,lbl,max)=>`<div class="ga-row"><span class="ga-lbl">${lbl}</span><div class="as-step"><button class="stp" onclick="admGAStep('${field}',-1,${max})">−</button><div class="as-val" id="app-${field}">${pf[field]||0}</div><button class="stp" onclick="admGAStep('${field}',1,${max})">+</button></div></div>`;
   sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>${esc(lastName(p.name))}</h2><div class="ss">${fi(p.team)} ${esc(p.name)} · ${POSLBL[p.pos]}</div></div>
     <div class="sheet-bd">
       <div class="ev-lbl">Spielzeit</div>
       <div class="seg-min" id="app-min">${[[0,'nicht gespielt'],[1,'unter 60 Min'],[2,'60 Min +']].map(o=>`<button class="${(pf.m||0)===o[0]?'on':''}" onclick="adminSetMin(${o[0]},this)">${o[1]}</button>`).join('')}</div>
-      ${ga('g','Tore')}
-      ${ga('a','Assists')}
-      <p class="note" style="margin:6px 2px 14px">Zu-Null wird automatisch aus Ergebnis + Position berechnet.</p>
+      ${ga('g','Tore',9)}
+      ${ga('a','Assists',9)}
+      ${ga('y','<span class=\"cardchip y\"></span>Gelbe Karten',2)}
+      ${ga('r','<span class=\"cardchip r\"></span>Rote Karte',1)}
+      <p class="note" style="margin:6px 2px 14px">Zu-Null wird automatisch berechnet · Gelb −1, Rot −3.</p>
       <button class="btn btn-pri btn-wide" onclick="adminSavePerf()">${svg(I.check)} Speichern</button>
       ${exists?`<button class="btn btn-out btn-wide btn-sm" style="margin-top:9px" onclick="adminDelPerf()">${svg(I.x)} Leistung austragen</button>`:''}
       <button class="btn btn-soft btn-wide btn-sm" style="margin-top:9px" onclick="renderAdminMatch()">${svg(I.chevL)} Zurück</button>
     </div>`);
 }
 function adminSetMin(m,btn){ if(S.admPP)S.admPP.m=m; const seg=$('#app-min'); if(seg)[...seg.children].forEach(b=>b.classList.toggle('on',b===btn)); }
-function admGAStep(field,d){ if(!S.admPP)return; S.admPP[field]=Math.max(0,Math.min(9,(S.admPP[field]||0)+d)); const el=$('#app-'+field); if(el)el.textContent=S.admPP[field]; }
+function admGAStep(field,d,max){ if(!S.admPP)return; const mx=(max==null?9:max); S.admPP[field]=Math.max(0,Math.min(mx,(S.admPP[field]||0)+d)); const el=$('#app-'+field); if(el)el.textContent=S.admPP[field]; }
 async function adminSavePerf(){
   const st=S.admPP; if(!st)return; const f=DB.fixtures.find(x=>x.id===st.fid), p=pl(st.pid); if(!f||!p)return;
-  const mk=matchKey(f), m=st.m||0, g=st.g||0, a=st.a||0;
-  PERF[mk]=PERF[mk]||{}; PERF[mk][p.name]={m,g,a};
-  if(CLOUD&&sb){ try{ const {error}=await sb.rpc('admin_set_perf',{p_match:mk,p_player:p.name,p_m:m,p_g:g,p_a:a}); if(error){toast('Fehler: '+(error.message||error.code||'?'));return;} }catch(e){toast('Speichern fehlgeschlagen');console.warn(e);return;} }
+  const mk=matchKey(f), m=st.m||0, g=st.g||0, a=st.a||0, y=st.y||0, rr=st.r||0;
+  PERF[mk]=PERF[mk]||{}; PERF[mk][p.name]={m,g,a,y,r:rr};
+  if(CLOUD&&sb){ try{ const {error}=await sb.rpc('admin_set_perf',{p_match:mk,p_player:p.name,p_m:m,p_g:g,p_a:a,p_y:y,p_r:rr}); if(error){toast('Fehler: '+(error.message||error.code||'?'));return;} }catch(e){toast('Speichern fehlgeschlagen');console.warn(e);return;} }
   toast(lastName(p.name)+' gespeichert ✓'); refreshAfterAdmin(); renderAdminMatch();
 }
 async function adminDelPerf(){
