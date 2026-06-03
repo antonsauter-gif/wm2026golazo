@@ -727,7 +727,9 @@ const KEY='wm26:v4';
 const SUPABASE = { url:'https://xjythzzkzjxyvhoctnyh.supabase.co', anonKey:'sb_publishable_Ep8m-ecGV5qvnrdUgdLelA_r8qWmo01' };
 let sb=null, CLOUD=false, USER=null;
 const ADMIN_PIN='2026'; // <-- DEINEN eigenen PIN hier eintragen
-const EMPTY_DB=()=>({me:null,fixtures:[],preds:{},results:{},trio:{},stars:{},league:null,special:{}});
+const REF_BONUS=1;
+let PENDING_REF=null, PENDING_CODE=null;
+const EMPTY_DB=()=>({me:null,fixtures:[],preds:{},results:{},trio:{},stars:{},league:null,special:{},refPts:0});
 function initCloud(){ try{ if(SUPABASE.url&&SUPABASE.anonKey&&window.supabase){ sb=window.supabase.createClient(SUPABASE.url,SUPABASE.anonKey); CLOUD=true; } }catch(e){ console.warn('cloud init',e); CLOUD=false; } }
 function fxList(){ return FIX.map(f=>({id:f.id,md:f.md,g:f.g,home:f.h,away:f.a,ko:f.ko,v:f.v})); }
 function ensureFixtures(){ if(!DB.fixtures||!DB.fixtures.length){ DB.fixtures=fxList(); } }
@@ -739,7 +741,7 @@ async function loadResultsCloud(FX){
 async function loadCloud(FX){
   DB=EMPTY_DB(); DB.fixtures=FX;
   try{ const {data:st}=await sb.from('user_state').select('state').eq('user_id',USER.id).maybeSingle();
-    if(st&&st.state){const s=st.state; DB.me=s.me||null; DB.preds=s.preds||{}; DB.stars=s.stars||{}; DB.trio=s.trio||{}; DB.league=s.league||null; DB.fxOn=s.fxOn; DB.special=s.special||{};} }catch(e){ console.warn('state',e); }
+    if(st&&st.state){const s=st.state; DB.me=s.me||null; DB.preds=s.preds||{}; DB.stars=s.stars||{}; DB.trio=s.trio||{}; DB.league=s.league||null; DB.fxOn=s.fxOn; DB.special=s.special||{}; DB.refPts=s.refPts||0;} }catch(e){ console.warn('state',e); }
   await loadResultsCloud(FX);
   if(DB.league&&DB.league.code){ try{ const {data:rows}=await sb.rpc('league_board',{p_code:DB.league.code}); if(rows&&rows.length)DB.league.members=rows.map(r=>r.uname||'Spieler'); }catch(e){ console.warn('members',e); } }
   DB.fixtures=FX;
@@ -747,7 +749,7 @@ async function loadCloud(FX){
 function tipPointsForState(s){let pts=0;DB.fixtures.forEach(f=>{const v=scorePred((s.preds||{})[f.id],DB.results[f.id]); if(v!=null)pts+=v;});return pts;}
 function memberStarPts(f,p,r){const perf=perfFor(f,p);if(!perf)return null;const mn=perf.m===2?2:(perf.m===1?1:0),gp=(p.pos==='GK'||p.pos==='DEF')?6:(p.pos==='MID'?5:4);let cs=0;if(perf.m===2&&r&&r.h!=null){const conc=(f.home===p.team?r.a:r.h);if(conc===0)cs=(p.pos==='GK'||p.pos==='DEF')?4:(p.pos==='MID'?1:0);}return mn+(perf.g||0)*gp+(perf.a||0)*3+cs-(perf.y||0)-(perf.r||0)*3;}
 function starPointsForState(s){let pts=0;DB.fixtures.forEach(f=>{const pid=(s.stars||{})[f.id]; if(!pid)return; const p=pl(pid); if(!p)return; const v=memberStarPts(f,p,DB.results[f.id]); if(v!=null)pts+=v;});return pts;}
-function pointsForState(s){return tipPointsForState(s)+starPointsForState(s)+specialPointsForState(s);}
+function pointsForState(s){return tipPointsForState(s)+starPointsForState(s)+specialPointsForState(s)+((s&&s.refPts)||0);}
 async function ensureMembership(){
   S.memErr=null;
   if(!CLOUD||!DB.league||!DB.league.code||!USER)return;
@@ -826,7 +828,7 @@ async function doSignup(){ const email=($('#au-mail').value||'').trim(), pw=$('#
 async function doLogin(){ const email=($('#au-mail').value||'').trim(), pw=$('#au-pw').value||''; if(!email||!pw)return authErr('E-Mail und Passwort eingeben'); authErr('…');
   let r; try{ r=await sb.auth.signInWithPassword({email,password:pw}); }catch(e){ return authErr('Keine Verbindung — Internet prüfen und nochmal.'); }
   if(r.error)return authErr(authMsg(r.error.message)); USER=r.data.session.user; await afterAuth(); }
-async function afterAuth(){ const FX=fxList(); await loadCloud(FX); if(!DB.me||!DB.league){ renderOnboard('welcome'); return;} await ensureMembership(); S.tab='heute'; render(); persist(); }
+async function afterAuth(){ const FX=fxList(); await loadCloud(FX); await loadReferrals(); if(!DB.me||!DB.league){ renderOnboard('welcome'); return;} await ensureMembership(); S.tab='heute'; render(); persist(); }
 async function doLogout(){ try{ await sb.auth.signOut(); }catch(e){} USER=null; DB=EMPTY_DB(); closeSheet(); renderAuth('login'); }
 /* ============================================================
    OFFIZIELLE ERGEBNISSE — von dir (dem Betreiber) gepflegt.
@@ -1046,7 +1048,7 @@ function koDow(ko){return ['So','Mo','Di','Mi','Do','Fr','Sa'][new Date(ko).getD
 function koDayLong(ko){const d=new Date(ko);return ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'][d.getDay()]+', '+d.getDate()+'. '+MO[d.getMonth()];}
 function koShort(ko){const d=new Date(ko);return d.getDate()+'. '+MO[d.getMonth()];}
 
-let DB={ me:null, fixtures:[], preds:{}, results:{}, trio:{}, stars:{}, league:null, special:{} };
+let DB={ me:null, fixtures:[], preds:{}, results:{}, trio:{}, stars:{}, league:null, special:{}, refPts:0 };
 let S={ tab:'heute', day:null, fanMD:1, selMd:1, ppPos:'all', ppQuery:'', spFid:null, spPos:'all', grp:null, lbView:'liga', admin:false, admMd:1, torView:'tore', spField:null, spQuery:'' };
 
 const $=s=>document.querySelector(s);
@@ -1058,13 +1060,15 @@ function lastName(n){const p=n.split(' ');return p.length>1?p[p.length-1]:n;}
 function toast(m){let t=$('#toast');if(!t){t=document.createElement('div');t.id='toast';t.className='toast';app().appendChild(t);}t.textContent=m;requestAnimationFrame(()=>t.classList.add('show'));clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),1900);}
 function confetti(n,oy){if(DB.fxOn===false)return;const host=app();if(!host)return;const layer=document.createElement('div');layer.className='fx';host.appendChild(layer);const cx=host.clientWidth/2,cy=host.clientHeight*(oy||.4);const cols=['#E90052','#963CFF','#22B2F0','#37003C'];n=n||22;for(let i=0;i<n;i++){const p=document.createElement('span');p.className='fx-b';p.style.background=cols[i%4];const w=5+Math.random()*6;p.style.width=w+'px';p.style.height=(w*1.6)+'px';p.style.left=cx+'px';p.style.top=cy+'px';layer.appendChild(p);const a=Math.random()*Math.PI*2,d=80+Math.random()*150,dx=Math.cos(a)*d,dy=Math.sin(a)*d-60,r=Math.random()*720-360;p.animate([{transform:'translate(0,0) rotate(0)',opacity:1},{transform:`translate(${dx}px,${dy+160}px) rotate(${r}deg)`,opacity:0}],{duration:900+Math.random()*500,easing:'cubic-bezier(.2,.6,.3,1)',fill:'forwards'});}setTimeout(()=>layer.remove(),1600);}
 
+async function loadReferrals(){ if(!CLOUD||!sb||!USER)return; try{ const {data}=await sb.rpc('my_referrals'); DB.refPts=((data||0))*REF_BONUS; }catch(e){ console.warn('refs',e); } }
 async function boot(){
   buildPlayers();
+  try{ const u=new URLSearchParams(location.search); const rf=u.get('ref'), cd=u.get('code'); if(rf)PENDING_REF=rf; if(cd)PENDING_CODE=cd.toUpperCase(); }catch(e){}
   const FX=FIX.map(f=>({id:f.id,md:f.md,g:f.g,home:f.h,away:f.a,ko:f.ko,v:f.v}));
   initCloud();
   if(CLOUD){
     try{ const {data}=await sb.auth.getSession(); const session=data&&data.session;
-      if(session){ USER=session.user; await loadCloud(FX); if(!DB.me||!DB.league){renderOnboard('welcome');return;} await ensureMembership(); render(); persist(); return; } }catch(e){ console.warn('session',e); }
+      if(session){ USER=session.user; await loadCloud(FX); await loadReferrals(); if(!DB.me||!DB.league){renderOnboard('welcome');return;} await ensureMembership(); render(); persist(); return; } }catch(e){ console.warn('session',e); }
     renderAuth('signup'); return;
   }
   const saved=await sget(KEY);
@@ -1074,7 +1078,7 @@ async function boot(){
   if(!DB.me){ persist(); renderOnboard(); return; }
   persist(); render();
 }
-async function persist(){ if(CLOUD&&USER&&sb){ try{ await sb.from('user_state').upsert({user_id:USER.id,name:(DB.me&&DB.me.name)||'',state:{me:DB.me,preds:DB.preds,stars:DB.stars,trio:DB.trio,league:DB.league,fxOn:DB.fxOn,special:DB.special,pts:{tip:myTipPoints(),star:myStarPoints(),spec:mySpecialPoints()}},updated_at:new Date().toISOString()}); }catch(e){ console.warn('persist',e); } } else { await sset(KEY,DB); } }
+async function persist(){ if(CLOUD&&USER&&sb){ try{ await sb.from('user_state').upsert({user_id:USER.id,name:(DB.me&&DB.me.name)||'',state:{me:DB.me,preds:DB.preds,stars:DB.stars,trio:DB.trio,league:DB.league,fxOn:DB.fxOn,special:DB.special,refPts:(DB.refPts||0),pts:{tip:myTipPoints(),star:myStarPoints(),spec:mySpecialPoints()}},updated_at:new Date().toISOString()}); }catch(e){ console.warn('persist',e); } } else { await sset(KEY,DB); } }
 
 /* ---------- onboarding ---------- */
 function detectTz(){try{return Intl.DateTimeFormat().resolvedOptions().timeZone||'';}catch(e){return '';}}
@@ -1112,7 +1116,7 @@ function renderOnboard(mode){
     app().innerHTML=`<div class="ob-step">
       <button class="ob-back" onclick="renderOnboard('welcome')">${svg(I.chevL)} Zurück</button>
       <h2>Liga beitreten</h2><div class="sub">Du hast einen 5-stelligen Code von Freunden bekommen? Gib ihn ein. Beitreten klappt nur, wenn die Liga existiert.</div>
-      <div class="field"><label>Liga-Code</label><input id="ob-code" placeholder="z.B. K7P2X" autocomplete="off" style="text-transform:uppercase;font-weight:800;letter-spacing:.1em;font-size:18px"></div>
+      <div class="field"><label>Liga-Code</label><input id="ob-code" placeholder="z.B. K7P2X" autocomplete="off" value="${esc(PENDING_CODE||'')}" style="text-transform:uppercase;font-weight:800;letter-spacing:.1em;font-size:18px"></div>
       <div class="field"><label>Dein Name</label><input id="ob-name" placeholder="z.B. Anton" autocomplete="off"></div>
       <div class="field"><label>Dein Lieblingsteam (optional)</label><select id="ob-fav"><option value="">— wählen —</option>${Object.keys(TEAMS).sort((a,b)=>T(a).n.localeCompare(T(b).n)).map(k=>`<option value="${k}">${esc(T(k).n)}</option>`).join('')}</select></div>
       <div class="ob-region">${svg(I.clock)} Anstosszeiten in deiner Zeit · <b>${tzCity()}</b></div>
@@ -1155,7 +1159,9 @@ async function doJoin(){
     if(je){ const mm=(je.message||'').toLowerCase(); if(mm.includes('not found'))return toast('Diese Liga gibt es nicht — prüfe den Code.'); console.warn('join',je); return toast('Konnte nicht beitreten: '+(je.message||je.code||'Fehler')); }
     let lname='Liga '+code; try{ const {data:lg}=await sb.from('leagues').select('name').eq('code',code).maybeSingle(); if(lg&&lg.name)lname=lg.name; }catch(e){}
     DB.me={name,fav,tz,role:'member'}; DB.league={name:lname,code,role:'member',members:[name]};
-    await persist(); enterApp(); return;
+    await persist();
+    if(PENDING_REF){ try{ await sb.rpc('record_referral',{p_referrer:PENDING_REF,p_code:code}); }catch(e){console.warn('ref',e);} PENDING_REF=null; }
+    enterApp(); return;
   }
   const reg=await leaguesReg(); const lg=reg[code];
   if(!lg)return toast('Diese Liga gibt es nicht — prüfe den Code.');
@@ -1164,7 +1170,7 @@ async function doJoin(){
   DB.league={name:lg.name,code,role:'member',members:lg.members.slice()};
   await persist(); enterApp();
 }
-async function copyCode(){ try{ await navigator.clipboard.writeText(`⚽ Mach mit bei meiner Golazo-Tipprunde "${DB.league.name}"!\nLiga-Code: ${DB.league.code}\nÖffne die App, tippe "Mit Code beitreten" und gib den Code ein. 🏆`); toast('Code kopiert — ab in die Gruppe!'); }catch(e){ toast('Code: '+DB.league.code); } }
+async function copyCode(){ const base=location.origin+location.pathname; const link=`${base}?code=${DB.league.code}&ref=${(USER&&USER.id)||''}`; const msg=`⚽ Mach mit bei meiner Golazo-Tipprunde "${DB.league.name}"!\nLiga-Code: ${DB.league.code}\n${link}`; try{ await navigator.clipboard.writeText(msg); toast('Einladung kopiert — ab in die Gruppe!'); }catch(e){ toast('Code: '+DB.league.code); } }
 function enterApp(){ S.tab='heute'; render(); }
 
 /* ---------- shell ---------- */
@@ -1201,7 +1207,7 @@ function starBreakdown(fid){
 }
 function starPoints(fid){const b=starBreakdown(fid);return b?b.total:null;}
 function myStarPoints(){let s=0;DB.fixtures.forEach(f=>{const v=starPoints(f.id);if(v!=null)s+=v;});return s;}
-function totalPoints(){return myTipPoints()+myStarPoints()+mySpecialPoints();}
+function totalPoints(){return myTipPoints()+myStarPoints()+mySpecialPoints()+(DB.refPts||0);}
 
 /* ============================================================ HEUTE ============================================================ */
 function dateList(){return [...new Set(DB.fixtures.map(f=>localDayKey(f.ko)))].sort();}
@@ -1594,6 +1600,7 @@ function viewRangliste(){
       <div class="inv-l"><div class="inv-k">Liga-Code zum Einladen</div><div class="inv-code">${DB.league.code}</div></div>
       <button class="btn btn-dark btn-sm" onclick="copyCode()">${svg(I.share)} Teilen</button>
     </div>`;
+    html+=`<div class="invite-hint">${svg(I.share)}<div><b>+${DB.refPts||0} Bonus-Punkte aus Einladungen.</b> Teile deinen persönlichen Link — pro Freund, der ein Konto erstellt und beitritt, gibt's +${REF_BONUS}.</div></div>`;
   }
 
   html+=`<button class="btn btn-soft btn-wide btn-sm" style="margin-top:14px" onclick="openHowItWorks()">Wie funktionieren die Punkte?</button>`;
@@ -1687,7 +1694,7 @@ function toggleFx(btn){DB.fxOn=(DB.fxOn===false);btn.classList.toggle('on',DB.fx
 function leaveLeague(){confirmSheet('Liga verlassen?','Du verlässt die aktuelle Liga und kommst zurück zum Start. Deine Tipps bleiben erhalten.','Verlassen',doLeave);}
 function doLeave(){ if(CLOUD&&DB.league&&DB.league.code&&USER){ try{ sb.from('league_members').delete().eq('code',DB.league.code).eq('user_id',USER.id); }catch(e){} } DB.league=null; persist(); renderOnboard('welcome'); }
 function resetAll(){confirmSheet('Alles zurücksetzen?','Alle Tipps, dein Trio, dein Profil und deine Liga werden endgültig gelöscht.','Löschen',doReset);}
-function doReset(){DB={me:null,fixtures:[],preds:{},results:{},trio:{},stars:{},league:null,special:{}};persist();renderOnboard('welcome');}
+function doReset(){DB={me:null,fixtures:[],preds:{},results:{},trio:{},stars:{},league:null,special:{},refPts:0};persist();renderOnboard('welcome');}
 function confirmSheet(title,msg,ok,fn){window.__ok=fn;sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>${esc(title)}</h2><div class="ss">${esc(msg)}</div></div>
   <div class="sheet-bd"><button class="btn btn-pri btn-wide" style="background:var(--bad)" onclick="(window.__ok||function(){})()">${esc(ok)}</button><button class="btn btn-soft btn-wide" style="margin-top:9px" onclick="closeSheet()">Abbrechen</button></div>`);}
 function openHowItWorks(){
