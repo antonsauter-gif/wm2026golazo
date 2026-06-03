@@ -1421,7 +1421,7 @@ function openStarEval(fid){
       <div class="ev-match">${fi(f.home)} ${esc(T(f.home).n)} ${hasR?`<b>${r.h}:${r.a}</b>`:`<span class="ev-vs">vs</span>`} ${esc(T(f.away).n)} ${fi(f.away)}</div>
       ${b?`<div class="ev-lbl">Auswertung · ${mins}</div>${rows}`:''}
       ${status}
-      ${!kicked?`<button class="btn btn-out btn-wide" style="margin-top:14px" onclick="closeSheet();openStarPick(${fid})">${svg(I.star)} Star noch ändern</button>`:''}
+      ${!kicked?`<button class="btn btn-out btn-wide" style="margin-top:14px" onclick="openStarPick(${fid})">${svg(I.star)} Star noch ändern</button>`:''}
       <button class="btn btn-soft btn-wide btn-sm" style="margin-top:9px" onclick="closeSheet()">Schließen</button>
     </div>`);
 }
