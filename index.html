@@ -689,6 +689,18 @@
   .view-welt .view-title{ background:var(--grad-holo); }
   .lb-av.flag-av{ background:none;overflow:hidden;padding:0; }
   .lb-av.flag-av .flag{ width:100%;height:100%;border-radius:50%;object-fit:cover;box-shadow:none; }
+  .st-card{ background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh); }
+  .st-row{ display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:13px 14px;border-bottom:1px solid var(--line-2); }
+  .st-row:last-of-type{ border-bottom:0; }
+  .st-row.tap:active{ background:var(--field); }
+  .st-row .ppl-i{ flex:1;min-width:0; }
+  .st-row .ppl-fl{ flex-shrink:0; } .st-row .ppl-fl .flag{ width:26px;height:18px;border-radius:3px; }
+  .st-row .ppl-add{ width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:21px;flex-shrink:0; }
+  .st-pts{ font-family:var(--fd);font-weight:800;font-size:15px;border-radius:7px;padding:3px 10px;flex-shrink:0; }
+  .st-pts.ok{ background:var(--good);color:#fff; } .st-pts.no{ background:var(--field);color:var(--ink-3); }
+  .st-wait{ font-size:11px;font-weight:700;color:var(--ink-3);background:var(--field);border-radius:999px;padding:5px 11px;flex-shrink:0; }
+  .st-note{ font-size:12px;color:var(--ink-2);padding:12px 14px;line-height:1.5;background:var(--field); }
+  .lb-tbl.tor .lb-th,.lb-tbl.tor .lb-row{ grid-template-columns:34px 1fr 52px 52px; }
 </style>
 </head>
 <body>
@@ -715,7 +727,7 @@ const KEY='wm26:v4';
 const SUPABASE = { url:'https://xjythzzkzjxyvhoctnyh.supabase.co', anonKey:'sb_publishable_Ep8m-ecGV5qvnrdUgdLelA_r8qWmo01' };
 let sb=null, CLOUD=false, USER=null;
 const ADMIN_PIN='2026'; // <-- DEINEN eigenen PIN hier eintragen
-const EMPTY_DB=()=>({me:null,fixtures:[],preds:{},results:{},trio:{},stars:{},league:null});
+const EMPTY_DB=()=>({me:null,fixtures:[],preds:{},results:{},trio:{},stars:{},league:null,special:{}});
 function initCloud(){ try{ if(SUPABASE.url&&SUPABASE.anonKey&&window.supabase){ sb=window.supabase.createClient(SUPABASE.url,SUPABASE.anonKey); CLOUD=true; } }catch(e){ console.warn('cloud init',e); CLOUD=false; } }
 function fxList(){ return FIX.map(f=>({id:f.id,md:f.md,g:f.g,home:f.h,away:f.a,ko:f.ko,v:f.v})); }
 function ensureFixtures(){ if(!DB.fixtures||!DB.fixtures.length){ DB.fixtures=fxList(); } }
@@ -727,7 +739,7 @@ async function loadResultsCloud(FX){
 async function loadCloud(FX){
   DB=EMPTY_DB(); DB.fixtures=FX;
   try{ const {data:st}=await sb.from('user_state').select('state').eq('user_id',USER.id).maybeSingle();
-    if(st&&st.state){const s=st.state; DB.me=s.me||null; DB.preds=s.preds||{}; DB.stars=s.stars||{}; DB.trio=s.trio||{}; DB.league=s.league||null; DB.fxOn=s.fxOn;} }catch(e){ console.warn('state',e); }
+    if(st&&st.state){const s=st.state; DB.me=s.me||null; DB.preds=s.preds||{}; DB.stars=s.stars||{}; DB.trio=s.trio||{}; DB.league=s.league||null; DB.fxOn=s.fxOn; DB.special=s.special||{};} }catch(e){ console.warn('state',e); }
   await loadResultsCloud(FX);
   if(DB.league&&DB.league.code){ try{ const {data:rows}=await sb.rpc('league_board',{p_code:DB.league.code}); if(rows&&rows.length)DB.league.members=rows.map(r=>r.uname||'Spieler'); }catch(e){ console.warn('members',e); } }
   DB.fixtures=FX;
@@ -735,7 +747,7 @@ async function loadCloud(FX){
 function tipPointsForState(s){let pts=0;DB.fixtures.forEach(f=>{const v=scorePred((s.preds||{})[f.id],DB.results[f.id]); if(v!=null)pts+=v;});return pts;}
 function memberStarPts(f,p,r){const perf=perfFor(f,p);if(!perf)return null;const mn=perf.m===2?2:(perf.m===1?1:0),gp=(p.pos==='GK'||p.pos==='DEF')?6:(p.pos==='MID'?5:4);let cs=0;if(perf.m===2&&r&&r.h!=null){const conc=(f.home===p.team?r.a:r.h);if(conc===0)cs=(p.pos==='GK'||p.pos==='DEF')?4:(p.pos==='MID'?1:0);}return mn+(perf.g||0)*gp+(perf.a||0)*3+cs-(perf.y||0)-(perf.r||0)*3;}
 function starPointsForState(s){let pts=0;DB.fixtures.forEach(f=>{const pid=(s.stars||{})[f.id]; if(!pid)return; const p=pl(pid); if(!p)return; const v=memberStarPts(f,p,DB.results[f.id]); if(v!=null)pts+=v;});return pts;}
-function pointsForState(s){return tipPointsForState(s)+starPointsForState(s);}
+function pointsForState(s){return tipPointsForState(s)+starPointsForState(s)+specialPointsForState(s);}
 async function ensureMembership(){
   S.memErr=null;
   if(!CLOUD||!DB.league||!DB.league.code||!USER)return;
@@ -1034,8 +1046,8 @@ function koDow(ko){return ['So','Mo','Di','Mi','Do','Fr','Sa'][new Date(ko).getD
 function koDayLong(ko){const d=new Date(ko);return ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'][d.getDay()]+', '+d.getDate()+'. '+MO[d.getMonth()];}
 function koShort(ko){const d=new Date(ko);return d.getDate()+'. '+MO[d.getMonth()];}
 
-let DB={ me:null, fixtures:[], preds:{}, results:{}, trio:{}, stars:{}, league:null };
-let S={ tab:'heute', day:null, fanMD:1, selMd:1, ppPos:'all', ppQuery:'', spFid:null, spPos:'all', grp:null, lbView:'liga', admin:false, admMd:1 };
+let DB={ me:null, fixtures:[], preds:{}, results:{}, trio:{}, stars:{}, league:null, special:{} };
+let S={ tab:'heute', day:null, fanMD:1, selMd:1, ppPos:'all', ppQuery:'', spFid:null, spPos:'all', grp:null, lbView:'liga', admin:false, admMd:1, torView:'tore', spField:null, spQuery:'' };
 
 const $=s=>document.querySelector(s);
 const app=()=>document.getElementById('app');
@@ -1056,13 +1068,13 @@ async function boot(){
     renderAuth('signup'); return;
   }
   const saved=await sget(KEY);
-  if(saved&&saved.me){ DB=saved; DB.trio=DB.trio||{}; DB.preds=DB.preds||{}; DB.results=DB.results||{}; DB.stars=DB.stars||{}; if(DB.league&&!DB.league.role)DB.league.role=DB.league.joined?'member':'admin'; if(DB.league&&!DB.league.members&&DB.me)DB.league.members=[DB.me.name]; }
+  if(saved&&saved.me){ DB=saved; DB.trio=DB.trio||{}; DB.preds=DB.preds||{}; DB.results=DB.results||{}; DB.stars=DB.stars||{}; DB.special=DB.special||{}; if(DB.league&&!DB.league.role)DB.league.role=DB.league.joined?'member':'admin'; if(DB.league&&!DB.league.members&&DB.me)DB.league.members=[DB.me.name]; }
   DB.fixtures=FX;
   DB.results={}; FX.forEach(f=>{const o=OFFICIAL[f.home+'-'+f.away]; if(o&&o.h!=null&&o.a!=null)DB.results[f.id]={h:o.h,a:o.a};});
   if(!DB.me){ persist(); renderOnboard(); return; }
   persist(); render();
 }
-async function persist(){ if(CLOUD&&USER&&sb){ try{ await sb.from('user_state').upsert({user_id:USER.id,name:(DB.me&&DB.me.name)||'',state:{me:DB.me,preds:DB.preds,stars:DB.stars,trio:DB.trio,league:DB.league,fxOn:DB.fxOn,pts:{tip:myTipPoints(),star:myStarPoints()}},updated_at:new Date().toISOString()}); }catch(e){ console.warn('persist',e); } } else { await sset(KEY,DB); } }
+async function persist(){ if(CLOUD&&USER&&sb){ try{ await sb.from('user_state').upsert({user_id:USER.id,name:(DB.me&&DB.me.name)||'',state:{me:DB.me,preds:DB.preds,stars:DB.stars,trio:DB.trio,league:DB.league,fxOn:DB.fxOn,special:DB.special,pts:{tip:myTipPoints(),star:myStarPoints(),spec:mySpecialPoints()}},updated_at:new Date().toISOString()}); }catch(e){ console.warn('persist',e); } } else { await sset(KEY,DB); } }
 
 /* ---------- onboarding ---------- */
 function detectTz(){try{return Intl.DateTimeFormat().resolvedOptions().timeZone||'';}catch(e){return '';}}
@@ -1158,12 +1170,12 @@ function enterApp(){ S.tab='heute'; render(); }
 /* ---------- shell ---------- */
 function render(){
   ensureFixtures();
-  const body=S.tab==='heute'?viewHeute():S.tab==='gruppen'?viewGruppen():S.tab==='stars'?viewStars():S.tab==='welt'?viewWelt():viewRangliste();
+  const body=S.tab==='heute'?viewHeute():S.tab==='gruppen'?viewGruppen():S.tab==='stars'?viewStars():S.tab==='welt'?viewWelt():S.tab==='tor'?viewTor():viewRangliste();
   app().innerHTML=`
     <div class="hd"><div class="hd-row"><div class="brand">${MARK}<span class="wm">Golazo</span></div>
       <div class="hd-right"><div class="hd-pts">${svg(I.bolt,'pts-ic')}<span class="v">${totalPoints()}</span></div><button class="gear" onclick="openSettings()" aria-label="Einstellungen">${svg(I.gear)}</button></div></div></div>
     <div class="view view-${S.tab}" id="view">${body}</div>
-    <nav class="tabs">${tab('heute',I.house,'Heute')}${tab('gruppen',I.cal,'Gruppen')}${tab('stars',I.star,'Stars')}${tab('rangliste',I.trophy,'Liga')}${tab('welt',I.globe,'Welt')}</nav>
+    <nav class="tabs">${tab('heute',I.house,'Heute')}${tab('gruppen',I.cal,'Gruppen')}${tab('stars',I.star,'Stars')}${tab('rangliste',I.trophy,'Liga')}${tab('welt',I.globe,'Welt')}${tab('tor',I.shirt,'Torjäger')}</nav>
     <div class="scrim" id="scrim" onclick="closeSheet()"></div><div class="sheet" id="sheet"></div>`;
 }
 const tab=(id,ic,l)=>`<button class="tab ${S.tab===id?'on':''}" onclick="go('${id}')">${svg(ic)}<span>${l}</span></button>`;
@@ -1189,7 +1201,7 @@ function starBreakdown(fid){
 }
 function starPoints(fid){const b=starBreakdown(fid);return b?b.total:null;}
 function myStarPoints(){let s=0;DB.fixtures.forEach(f=>{const v=starPoints(f.id);if(v!=null)s+=v;});return s;}
-function totalPoints(){return myTipPoints()+myStarPoints();}
+function totalPoints(){return myTipPoints()+myStarPoints()+mySpecialPoints();}
 
 /* ============================================================ HEUTE ============================================================ */
 function dateList(){return [...new Set(DB.fixtures.map(f=>localDayKey(f.ko)))].sort();}
@@ -1429,6 +1441,97 @@ function openStarEval(fid){
       <button class="btn btn-soft btn-wide btn-sm" style="margin-top:9px" onclick="closeSheet()">Schließen</button>
     </div>`);
 }
+/* ============================================================ TORJÄGER + SONDERTIPPS ============================================================ */
+function scorerTable(){
+  const acc={};
+  Object.values(PERF).forEach(blk=>{ Object.entries(blk).forEach(([name,pf])=>{ const x=acc[name]=acc[name]||{g:0,a:0}; x.g+=pf.g||0; x.a+=pf.a||0; }); });
+  return Object.entries(acc).map(([name,v])=>{ const p=PLAYERS.find(pp=>pp.name===name||lastName(pp.name)===name); return {name:(p?p.name:name),team:p?p.team:null,pos:p?p.pos:null,g:v.g,a:v.a}; })
+    .filter(x=>x.g>0||x.a>0);
+}
+function tournamentFinished(){ return DB.fixtures.length>0 && DB.fixtures.every(f=>DB.results[f.id]!=null); }
+function firstKickoff(){ let m=Infinity; DB.fixtures.forEach(f=>{const t=new Date(f.ko).getTime(); if(t<m)m=t;}); return m; }
+function specialLocked(){ return Date.now()>=firstKickoff(); }
+function specialPointsForState(s){
+  if(!tournamentFinished())return 0;
+  const sp=(s&&s.special)||{}; if(!sp.scorer&&!sp.assist)return 0;
+  const tbl=scorerTable(); if(!tbl.length)return 0;
+  const maxG=Math.max(0,...tbl.map(x=>x.g)), maxA=Math.max(0,...tbl.map(x=>x.a));
+  let pts=0;
+  if(sp.scorer){ const p=pl(sp.scorer); const row=p&&tbl.find(x=>x.name===p.name); if(row&&maxG>0&&row.g===maxG)pts+=15; }
+  if(sp.assist){ const p=pl(sp.assist); const row=p&&tbl.find(x=>x.name===p.name); if(row&&maxA>0&&row.a===maxA)pts+=15; }
+  return pts;
+}
+function mySpecialPoints(){ return specialPointsForState({special:DB.special}); }
+function setTorView(v){ S.torView=v; render(); }
+function viewTor(){
+  const tbl=scorerTable();
+  const view=S.torView||'tore';
+  const sorted=[...tbl].sort(view==='tore'?(a,b)=>b.g-a.g||b.a-a.a||a.name.localeCompare(b.name):(a,b)=>b.a-a.a||b.g-a.g||a.name.localeCompare(b.name)).slice(0,50);
+  const locked=specialLocked(), fin=tournamentFinished();
+  const maxG=Math.max(0,...tbl.map(x=>x.g)), maxA=Math.max(0,...tbl.map(x=>x.a));
+  function pickRow(label,field){
+    const pid=DB.special&&DB.special[field], p=pid?pl(pid):null;
+    let right;
+    if(fin){ const row=p&&tbl.find(x=>x.name===p.name); const mv=field==='scorer'?maxG:maxA; const ok=row&&mv>0&&(field==='scorer'?row.g:row.a)===mv; right=`<span class="st-pts ${ok?'ok':'no'}">${ok?'+15':'0'}</span>`; }
+    else right=`<span class="st-wait">offen</span>`;
+    const inner = p
+      ? `<span class="ppl-fl">${fi(p.team)}</span><div class="ppl-i"><div class="ppl-n">${esc(p.name)} <span class="ms-pos">${POSSHORT[p.pos]}</span></div><div class="ppl-m">${label}</div></div>`
+      : `<span class="ppl-add" style="background:var(--field);color:var(--ink-3)">+</span><div class="ppl-i"><div class="ppl-n">${label}</div><div class="ppl-m">${locked?'nicht gewählt':'Spieler wählen'}</div></div>`;
+    if(locked) return `<div class="st-row">${inner}${right}</div>`;
+    return `<button class="st-row tap" onclick="openSpecialPick('${field}')">${inner}${p?`<span class="lb-chev">${svg(I.chevR)}</span>`:`<span class="lb-chev">${svg(I.chevR)}</span>`}</button>`;
+  }
+  let html=`<div class="view-title">Torjäger<div class="vt-sub">Tore & Vorlagen · Sondertipps</div></div>`;
+  html+=`<div class="adm-h" style="margin:0 2px 10px">Sondertipps · je +15 Punkte</div>`;
+  html+=`<div class="st-card">
+    ${pickRow('Torschützenkönig','scorer')}
+    ${pickRow('Top-Vorlagengeber','assist')}
+    <div class="st-note">${fin?'Endgültig ausgewertet — die Punkte zählen jetzt mit.':(locked?'Turnier läuft — Tipps gesperrt. Auswertung automatisch am Ende.':'Wähle vor dem ersten Anpfiff. Ausgewertet wird am Turnierende anhand der echten Tor- und Vorlagen-Tabelle.')}</div>
+  </div>`;
+  html+=`<div class="seg-pos" style="margin:18px 0 12px">
+    <button class="${view==='tore'?'on':''}" onclick="setTorView('tore')">Torjäger</button>
+    <button class="${view==='assists'?'on':''}" onclick="setTorView('assists')">Vorlagen</button></div>`;
+  if(!sorted.length){
+    html+=`<div class="empty"><div class="empty-ic">${svg(I.shirt)}</div><h3>Noch keine Tore</h3><p>Sobald Spiele ausgewertet sind, erscheint hier die Torjägerliste — live aus den eingetragenen Leistungen.</p></div>`;
+  } else {
+    html+=`<div class="lb-tbl tor"><div class="lb-th"><div class="lb-th-rank">#</div><div class="lb-th-name">Spieler</div><div class="lb-th-stat">Tore</div><div class="lb-th-stat">Vorl.</div></div>`;
+    sorted.forEach((x,i)=>{
+      html+=`<div class="lb-row${i===0?' lead':''}"><div class="lb-rank">${i+1}</div>
+        <div class="lb-player">${x.team?`<div class="lb-av flag-av">${fi(x.team)}</div>`:`<div class="lb-av">?</div>`}<div class="lb-nm">${esc(x.name)}${x.pos?` <span class="ms-pos">${POSSHORT[x.pos]}</span>`:''}</div></div>
+        <div class="lb-stat"${view==='tore'?' style="font-weight:800;color:var(--ink)"':''}>${x.g}</div>
+        <div class="lb-stat"${view==='assists'?' style="font-weight:800;color:var(--ink)"':''}>${x.a}</div></div>`;
+    });
+    html+=`</div>`;
+  }
+  return html;
+}
+function openSpecialPick(field){
+  if(specialLocked())return toast('Turnier läuft — Sondertipps gesperrt');
+  S.spField=field; S.spQuery=''; renderSpecialPick(false);
+}
+function setSpQuery(v){ S.spQuery=v; renderSpecialPick(true); }
+function renderSpecialPick(keepFocus){
+  const field=S.spField, q=(S.spQuery||'').toLowerCase().trim();
+  const cur=DB.special&&DB.special[field];
+  let pool=PLAYERS.slice();
+  if(q)pool=pool.filter(p=>p.name.toLowerCase().includes(q)||T(p.team).n.toLowerCase().includes(q));
+  pool=pool.sort((a,b)=>b.prob-a.prob||a.name.localeCompare(b.name)).slice(0,60);
+  const rows=pool.map(p=>{const sel=cur===p.id;
+    return `<div class="ppl ${sel?'sel':''}" onclick="setSpecial('${p.id}')">
+      <span class="ppl-fl">${fi(p.team)}</span>
+      <div class="ppl-i"><div class="ppl-n">${esc(p.name)}</div><div class="ppl-m">${esc(T(p.team).n)} · ${POSLBL[p.pos]}</div></div>
+      <span class="ppl-add ${sel?'in':''}">${sel?svg(I.check):'+'}</span></div>`;}).join('')||'<div class="sp-empty">Kein Spieler gefunden</div>';
+  const title=field==='scorer'?'Torschützenkönig':'Top-Vorlagengeber';
+  sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2 style="margin:0">${title}</h2><div class="ss">Dein Tipp fürs ganze Turnier — wer macht am meisten ${field==='scorer'?'Tore':'Vorlagen'}?</div>
+    <div class="field" style="margin:10px 0 0"><input id="sp-q" placeholder="Spieler oder Land suchen…" value="${esc(S.spQuery||'')}" oninput="setSpQuery(this.value)"></div></div>
+    <div class="sheet-bd" style="padding-top:10px">${rows}
+      ${cur?`<button class="btn btn-out btn-wide btn-sm" style="margin-top:8px" onclick="clearSpecial()">${svg(I.x)} Tipp entfernen</button>`:''}
+      <button class="btn btn-soft btn-wide btn-sm" style="margin-top:8px" onclick="closeSheet()">Schließen</button>
+    </div>`);
+  if(keepFocus){ const el=$('#sp-q'); if(el){ el.focus(); try{el.setSelectionRange(el.value.length,el.value.length);}catch(e){} } }
+}
+function setSpecial(pid){ DB.special=DB.special||{}; DB.special[S.spField]=pid; persist(); closeSheet(); render(); const p=pl(pid); toast('Sondertipp: '+(p?lastName(p.name):'gespeichert')); }
+function clearSpecial(){ if(DB.special)delete DB.special[S.spField]; persist(); closeSheet(); render(); }
+
 /* ============================================================ RANGLISTE ============================================================ */
 function viewRangliste(){
   const mine=totalPoints(), myTip=myTipPoints(), myStar=myStarPoints();
@@ -1584,7 +1687,7 @@ function toggleFx(btn){DB.fxOn=(DB.fxOn===false);btn.classList.toggle('on',DB.fx
 function leaveLeague(){confirmSheet('Liga verlassen?','Du verlässt die aktuelle Liga und kommst zurück zum Start. Deine Tipps bleiben erhalten.','Verlassen',doLeave);}
 function doLeave(){ if(CLOUD&&DB.league&&DB.league.code&&USER){ try{ sb.from('league_members').delete().eq('code',DB.league.code).eq('user_id',USER.id); }catch(e){} } DB.league=null; persist(); renderOnboard('welcome'); }
 function resetAll(){confirmSheet('Alles zurücksetzen?','Alle Tipps, dein Trio, dein Profil und deine Liga werden endgültig gelöscht.','Löschen',doReset);}
-function doReset(){DB={me:null,fixtures:[],preds:{},results:{},trio:{},stars:{},league:null};persist();renderOnboard('welcome');}
+function doReset(){DB={me:null,fixtures:[],preds:{},results:{},trio:{},stars:{},league:null,special:{}};persist();renderOnboard('welcome');}
 function confirmSheet(title,msg,ok,fn){window.__ok=fn;sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>${esc(title)}</h2><div class="ss">${esc(msg)}</div></div>
   <div class="sheet-bd"><button class="btn btn-pri btn-wide" style="background:var(--bad)" onclick="(window.__ok||function(){})()">${esc(ok)}</button><button class="btn btn-soft btn-wide" style="margin-top:9px" onclick="closeSheet()">Abbrechen</button></div>`);}
 function openHowItWorks(){
