@@ -1558,7 +1558,8 @@ function scorerTable(){
 }
 function tournamentFinished(){ return DB.fixtures.length>0 && DB.fixtures.every(f=>DB.results[f.id]!=null); }
 function firstKickoff(){ let m=Infinity; DB.fixtures.forEach(f=>{const t=new Date(f.ko).getTime(); if(t<m)m=t;}); return m; }
-function specialLocked(){ return Date.now()>=firstKickoff(); }
+function md2Done(){ const g=DB.fixtures.filter(f=>f.md===2); return g.length>0 && g.every(f=>DB.results[f.id]!=null); }
+function specialLocked(){ return md2Done(); }
 function specialPointsForState(s){
   if(!tournamentFinished())return 0;
   const sp=(s&&s.special)||{}; if(!sp.scorer&&!sp.assist)return 0;
@@ -1593,7 +1594,7 @@ function viewTor(){
   html+=`<div class="st-card">
     ${pickRow('Torschützenkönig','scorer')}
     ${pickRow('Top-Vorlagengeber','assist')}
-    <div class="st-note">${fin?'Endgültig ausgewertet — die Punkte zählen jetzt mit.':(locked?'Turnier läuft — Tipps gesperrt. Auswertung automatisch am Ende.':'Wähle vor dem ersten Anpfiff. Ausgewertet wird am Turnierende anhand der echten Tor- und Vorlagen-Tabelle.')}</div>
+    <div class="st-note">${fin?'Endgültig ausgewertet — die Punkte zählen jetzt mit.':(locked?'Spieltag 2 ist vollständig gewertet — Sondertipps gesperrt. Auswertung automatisch am Turnierende.':'Du kannst noch wählen oder ändern, bis Spieltag 2 vollständig gewertet ist. Ausgewertet wird am Turnierende anhand der echten Tor- und Vorlagen-Tabelle.')}</div>
   </div>`;
   html+=`<div class="seg-pos" style="margin:18px 0 12px">
     <button class="${view==='tore'?'on':''}" onclick="setTorView('tore')">Torjäger</button>
@@ -1613,7 +1614,7 @@ function viewTor(){
   return html;
 }
 function openSpecialPick(field){
-  if(specialLocked())return toast('Turnier läuft — Sondertipps gesperrt');
+  if(specialLocked())return toast('Spieltag 2 ist durch — Sondertipps gesperrt');
   S.spField=field; S.spQuery=''; renderSpecialPick(false);
 }
 function setSpQuery(v){ S.spQuery=v; renderSpecialPick(true); }
