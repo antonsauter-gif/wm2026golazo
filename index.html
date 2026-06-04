@@ -715,6 +715,11 @@
   .tip-btns{ display:flex; gap:8px; margin-top:11px; }
   .tip-btns .btn{ flex:1; margin:0; }
   .tip-btns .btn[disabled]{ opacity:.4; }
+  .seg-auth{ margin-bottom:18px; }
+  .fld-h{ font-size:11.5px; color:var(--ink-3); margin-top:5px; line-height:1.45; }
+  .rem{ display:flex; align-items:center; gap:9px; margin:2px 2px 13px; font-size:13.5px; color:var(--ink-2); cursor:pointer; user-select:none; }
+  .rem input{ width:18px; height:18px; accent-color:var(--accent); flex-shrink:0; }
+  .opt{ font-weight:600; color:var(--ink-3); font-size:11px; text-transform:uppercase; letter-spacing:.04em; margin-left:4px; }
 </style>
 </head>
 <body>
@@ -743,7 +748,7 @@ let sb=null, CLOUD=false, USER=null;
 const REF_BONUS=1;
 let PENDING_REF=null, PENDING_CODE=null;
 const EMPTY_DB=()=>({me:null,fixtures:[],preds:{},results:{},trio:{},stars:{},league:null,special:{},refPts:0});
-function initCloud(){ try{ if(SUPABASE.url&&SUPABASE.anonKey&&window.supabase){ sb=window.supabase.createClient(SUPABASE.url,SUPABASE.anonKey); CLOUD=true; } }catch(e){ console.warn('cloud init',e); CLOUD=false; } }
+function initCloud(){ try{ if(SUPABASE.url&&SUPABASE.anonKey&&window.supabase){ sb=window.supabase.createClient(SUPABASE.url,SUPABASE.anonKey,{auth:{persistSession:true,autoRefreshToken:true,storageKey:'golazo-auth'}}); CLOUD=true; } }catch(e){ console.warn('cloud init',e); CLOUD=false; } }
 function fxList(){ return FIX.map(f=>({id:f.id,md:f.md,g:f.g,home:f.h,away:f.a,ko:f.ko,v:f.v})); }
 function ensureFixtures(){ if(!DB.fixtures||!DB.fixtures.length){ DB.fixtures=fxList(); } }
 async function loadResultsCloud(FX){
@@ -811,39 +816,71 @@ function openMember(id){
     </div>`);
 }
 /* ---- Auth UI ---- */
+function userToEmail(u){ return (u||'').toLowerCase().replace(/[^a-z0-9_]/g,'') + '@golazo.app'; }
+function usernameAllowed(u){
+  const t=(u||'').toLowerCase().trim();
+  if(!/^[a-z][a-z0-9_]{2,19}$/.test(t)) return {ok:false,msg:'3–20 Zeichen, beginnt mit einem Buchstaben, nur a–z, 0–9 und _.'};
+  const n=normName(t); for(const w of NAME_BLOCK){ if(n.includes(w)) return {ok:false,msg:'Dieser Benutzername ist nicht erlaubt.'}; }
+  return {ok:true,clean:t};
+}
+let _remember=true;
+function setRemember(v){ _remember=!!v; }
+function applyRemember(){ try{ localStorage.setItem('golazo:remember', _remember?'1':'0'); sessionStorage.setItem('golazo:alive','1'); }catch(e){} }
 function renderAuth(mode){
   mode=mode||'login'; const su=mode==='signup';
   app().innerHTML=`<div class="ob-step auth">
-    <div class="ob-top" style="margin-bottom:20px"><div class="ob-mark">${MARK}</div><div class="ob-wm">Golazo</div><div class="ob-tag">WM 2026 · Tippen & Fantasy</div></div>
-    <h2>${su?'Konto erstellen':'Anmelden'}</h2>
-    <div class="sub">${su?'E-Mail + Passwort eingeben — fertig. Keine Bestätigungs-Mail nötig.':'Willkommen zurück — melde dich an.'}</div>
-    <div class="field"><label>E-Mail</label><input id="au-mail" type="email" autocomplete="email" placeholder="du@mail.ch"></div>
-    <div class="field"><label>Passwort</label><input id="au-pw" type="password" autocomplete="${su?'new-password':'current-password'}" placeholder="${su?'mind. 6 Zeichen':'dein Passwort'}"></div>
+    <div class="ob-top" style="margin-bottom:20px"><div class="ob-mark">${MARK}</div><div class="ob-wm">Golazo</div><div class="ob-tag">WM 2026 · Tippspiel & Fantasy</div></div>
+    <div class="seg-pos seg-auth"><button class="${!su?'on':''}" onclick="renderAuth('login')">Anmelden</button><button class="${su?'on':''}" onclick="renderAuth('signup')">Registrieren</button></div>
+    ${su?`
+      <div class="field"><label>Anzeigename</label><input id="au-name" autocomplete="off" maxlength="24" placeholder="z.B. Anton"><div class="fld-h">So erscheinst du in der Rangliste — frei wählbar.</div></div>
+      <div class="field"><label>Benutzername</label><input id="au-user" autocomplete="username" maxlength="20" placeholder="anton_s" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')"><div class="fld-h">Zum Anmelden · einmalig vergeben · nicht änderbar.</div></div>
+      <div class="field"><label>Passwort</label><input id="au-pw" type="password" autocomplete="new-password" placeholder="mind. 8 Zeichen"></div>
+    `:`
+      <div class="field"><label>Benutzername</label><input id="au-user" autocomplete="username" placeholder="anton_s" oninput="this.value=this.value.toLowerCase()"></div>
+      <div class="field"><label>Passwort</label><input id="au-pw" type="password" autocomplete="current-password" placeholder="dein Passwort" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    `}
+    <label class="rem"><input type="checkbox" id="au-rem" checked onchange="setRemember(this.checked)"><span>Angemeldet bleiben</span></label>
     <div id="au-err" class="auth-err"></div>
     <button class="btn btn-pri btn-wide" onclick="${su?'doSignup()':'doLogin()'}">${su?'Konto erstellen':'Anmelden'}</button>
-    <div class="auth-switch">${su?'Schon ein Konto?':'Noch kein Konto?'} <button onclick="renderAuth('${su?'login':'signup'}')">${su?'Anmelden':'Registrieren'}</button></div>
+    <div class="ob-mini" style="margin-top:14px">Inoffizielles WM-Tippspiel · kein Einsatz, keine Preise</div>
   </div>`;
 }
 function authErr(m){const e=$('#au-err'); if(e){e.textContent=m||''; e.style.display=m?'block':'none';}}
 function authMsg(m){ m=(m||'').toLowerCase();
-  if(m.includes('rate limit'))return 'Zu viele Versuche in kurzer Zeit. Warte 1–2 Minuten und probier es nochmal — oder melde dich mit „Anmelden" an, falls das Konto schon existiert.';
-  if(m.includes('already registered')||m.includes('already been registered'))return 'Diese E-Mail hat schon ein Konto. Tippe unten auf „Anmelden".';
-  if(m.includes('invalid login')||m.includes('invalid credentials'))return 'E-Mail oder Passwort stimmt nicht.';
-  if(m.includes('password'))return 'Passwort: mindestens 6 Zeichen.';
+  if(m.includes('rate limit'))return 'Zu viele Versuche. Warte 1–2 Minuten und probier es nochmal.';
+  if(m.includes('already registered')||m.includes('already been registered'))return 'Dieser Benutzername ist schon vergeben — wähl einen anderen.';
+  if(m.includes('invalid login')||m.includes('invalid credentials'))return 'Benutzername oder Passwort stimmt nicht.';
+  if(m.includes('password'))return 'Passwort: mindestens 8 Zeichen.';
   return m?m.charAt(0).toUpperCase()+m.slice(1):'Etwas ist schiefgelaufen — bitte nochmal versuchen.'; }
-async function doSignup(){ const email=($('#au-mail').value||'').trim(), pw=$('#au-pw').value||''; if(!email)return authErr('E-Mail fehlt'); if(pw.length<6)return authErr('Passwort: mind. 6 Zeichen'); authErr('…');
-  let r; try{ r=await sb.auth.signUp({email,password:pw}); }catch(e){ return authErr('Keine Verbindung — Internet prüfen und nochmal.'); }
+async function doSignup(){
+  const name=($('#au-name').value||'').trim(), uraw=($('#au-user').value||'').trim(), pw=$('#au-pw').value||'';
+  const dn=nameAllowed(name); if(!dn.ok)return authErr(dn.msg);
+  const un=usernameAllowed(uraw); if(!un.ok)return authErr(un.msg);
+  if(pw.length<8)return authErr('Passwort: mindestens 8 Zeichen.');
+  authErr('…');
+  const email=userToEmail(un.clean);
+  let r; try{ r=await sb.auth.signUp({email,password:pw,options:{data:{username:un.clean,display_name:name}}}); }catch(e){ return authErr('Keine Verbindung — Internet prüfen und nochmal.'); }
   if(r.error)return authErr(authMsg(r.error.message));
-  if(r.data&&r.data.session){USER=r.data.session.user; await afterAuth(); return;}
-  // No session = e-mail confirmation is still ON in Supabase. Try to log in directly anyway.
-  let l; try{ l=await sb.auth.signInWithPassword({email,password:pw}); }catch(e){ l={error:{message:'x'}}; }
-  if(l&&l.data&&l.data.session){USER=l.data.session.user; await afterAuth(); return;}
-  authErr('Konto angelegt. Tippe jetzt unten auf „Anmelden".'); }
-async function doLogin(){ const email=($('#au-mail').value||'').trim(), pw=$('#au-pw').value||''; if(!email||!pw)return authErr('E-Mail und Passwort eingeben'); authErr('…');
+  if(r.data&&r.data.user&&r.data.user.identities&&r.data.user.identities.length===0)return authErr('Dieser Benutzername ist schon vergeben — wähl einen anderen.');
+  let sess=r.data&&r.data.session;
+  if(!sess){ let l; try{ l=await sb.auth.signInWithPassword({email,password:pw}); }catch(e){ l={}; } sess=l&&l.data&&l.data.session; }
+  if(!sess)return authErr('Konto angelegt. Tippe oben auf „Anmelden".');
+  USER=sess.user; applyRemember();
+  DB.me={name,username:un.clean,fav:'',tz:detectTz(),role:'member'};
+  await persist();
+  renderOnboard('welcome');
+}
+async function doLogin(){
+  const uraw=($('#au-user').value||'').trim(), pw=$('#au-pw').value||'';
+  if(!uraw||!pw)return authErr('Benutzername und Passwort eingeben.');
+  authErr('…');
+  const email = uraw.includes('@') ? uraw.toLowerCase() : userToEmail(uraw);
   let r; try{ r=await sb.auth.signInWithPassword({email,password:pw}); }catch(e){ return authErr('Keine Verbindung — Internet prüfen und nochmal.'); }
-  if(r.error)return authErr(authMsg(r.error.message)); USER=r.data.session.user; await afterAuth(); }
+  if(r.error)return authErr(authMsg(r.error.message));
+  USER=r.data.session.user; applyRemember(); await afterAuth();
+}
 async function afterAuth(){ const FX=fxList(); await loadCloud(FX); await loadReferrals(); await loadAdminFlag(); if(DB.banned){renderBanned();return;} if(!DB.me||!DB.league){ renderOnboard('welcome'); return;} await ensureMembership(); S.tab='heute'; render(); persist(); maybeSharePrompt(); }
-async function doLogout(){ try{ await sb.auth.signOut(); }catch(e){} USER=null; DB=EMPTY_DB(); closeSheet(); renderAuth('login'); }
+async function doLogout(){ try{ await sb.auth.signOut(); }catch(e){} try{ localStorage.removeItem('golazo:remember'); sessionStorage.removeItem('golazo:alive'); }catch(e){} USER=null; DB=EMPTY_DB(); closeSheet(); renderAuth('login'); }
 /* ============================================================
    OFFIZIELLE ERGEBNISSE — von dir (dem Betreiber) gepflegt.
    ------------------------------------------------------------
@@ -1090,9 +1127,10 @@ async function boot(){
   const FX=FIX.map(f=>({id:f.id,md:f.md,g:f.g,home:f.h,away:f.a,ko:f.ko,v:f.v}));
   initCloud();
   if(CLOUD){
-    try{ const {data}=await sb.auth.getSession(); const session=data&&data.session;
-      if(session){ USER=session.user; await loadCloud(FX); await loadReferrals(); await loadAdminFlag(); if(DB.banned){renderBanned();return;} if(!DB.me||!DB.league){renderOnboard('welcome');return;} await ensureMembership(); render(); persist(); maybeSharePrompt(); return; } }catch(e){ console.warn('session',e); }
-    renderAuth('signup'); return;
+    try{ const {data}=await sb.auth.getSession(); let session=data&&data.session;
+      if(session){ let off=false; try{ off=localStorage.getItem('golazo:remember')==='0' && sessionStorage.getItem('golazo:alive')!=='1'; }catch(e){} if(off){ try{ await sb.auth.signOut(); }catch(e){} session=null; } }
+      if(session){ try{ sessionStorage.setItem('golazo:alive','1'); }catch(e){} USER=session.user; await loadCloud(FX); await loadReferrals(); await loadAdminFlag(); if(DB.banned){renderBanned();return;} if(!DB.me||!DB.league){renderOnboard('welcome');return;} await ensureMembership(); render(); persist(); maybeSharePrompt(); return; } }catch(e){ console.warn('session',e); }
+    renderAuth('login'); return;
   }
   const saved=await sget(KEY);
   if(saved&&saved.me){ DB=saved; DB.trio=DB.trio||{}; DB.preds=DB.preds||{}; DB.results=DB.results||{}; DB.stars=DB.stars||{}; DB.special=DB.special||{}; if(DB.league&&!DB.league.role)DB.league.role=DB.league.joined?'member':'admin'; if(DB.league&&!DB.league.members&&DB.me)DB.league.members=[DB.me.name]; }
@@ -1128,20 +1166,18 @@ function renderOnboard(mode){
   } else if(mode==='create'){
     app().innerHTML=`<div class="ob-step">
       <button class="ob-back" onclick="renderOnboard('welcome')">${svg(I.chevL)} Zurück</button>
-      <h2>Liga erstellen</h2><div class="sub">Gib eurer Tipprunde einen Namen — den Code zum Teilen bekommst du gleich danach.</div>
+      <h2>Neue Liga</h2><div class="sub">Gib eurer Tipprunde einen Namen. Den Einladungscode bekommst du gleich danach.</div>
       <div class="field"><label>Liga-Name</label><input id="ob-league" placeholder="z.B. WM-Crew Meilen" autocomplete="off"></div>
-      <div class="field"><label>Dein Name</label><input id="ob-name" placeholder="z.B. Anton" autocomplete="off"></div>
-      <div class="field"><label>Dein Lieblingsteam (optional)</label><select id="ob-fav"><option value="">— wählen —</option>${Object.keys(TEAMS).sort((a,b)=>T(a).n.localeCompare(T(b).n)).map(k=>`<option value="${k}">${esc(T(k).n)}</option>`).join('')}</select></div>
+      <div class="field"><label>Lieblingsteam <span class="opt">optional</span></label><select id="ob-fav"><option value="">— wählen —</option>${Object.keys(TEAMS).sort((a,b)=>T(a).n.localeCompare(T(b).n)).map(k=>`<option value="${k}">${esc(T(k).n)}</option>`).join('')}</select><div class="fld-h">Erscheint als Flagge bei deinem Namen.</div></div>
       <div class="ob-region">${svg(I.clock)} Anstosszeiten in deiner Zeit · <b>${tzCity()}</b></div>
       <div class="ob-spacer"></div>
       <button class="btn btn-pri btn-wide" onclick="doCreate()">Liga erstellen</button></div>`;
   } else if(mode==='join'){
     app().innerHTML=`<div class="ob-step">
       <button class="ob-back" onclick="renderOnboard('welcome')">${svg(I.chevL)} Zurück</button>
-      <h2>Liga beitreten</h2><div class="sub">Du hast einen 5-stelligen Code von Freunden bekommen? Gib ihn ein. Beitreten klappt nur, wenn die Liga existiert.</div>
+      <h2>Liga beitreten</h2><div class="sub">Gib den 5-stelligen Code ein, den du von Freunden bekommen hast.</div>
       <div class="field"><label>Liga-Code</label><input id="ob-code" placeholder="z.B. K7P2X" autocomplete="off" value="${esc(PENDING_CODE||'')}" style="text-transform:uppercase;font-weight:800;letter-spacing:.1em;font-size:18px"></div>
-      <div class="field"><label>Dein Name</label><input id="ob-name" placeholder="z.B. Anton" autocomplete="off"></div>
-      <div class="field"><label>Dein Lieblingsteam (optional)</label><select id="ob-fav"><option value="">— wählen —</option>${Object.keys(TEAMS).sort((a,b)=>T(a).n.localeCompare(T(b).n)).map(k=>`<option value="${k}">${esc(T(k).n)}</option>`).join('')}</select></div>
+      <div class="field"><label>Lieblingsteam <span class="opt">optional</span></label><select id="ob-fav"><option value="">— wählen —</option>${Object.keys(TEAMS).sort((a,b)=>T(a).n.localeCompare(T(b).n)).map(k=>`<option value="${k}">${esc(T(k).n)}</option>`).join('')}</select><div class="fld-h">Erscheint als Flagge bei deinem Namen.</div></div>
       <div class="ob-region">${svg(I.clock)} Anstosszeiten in deiner Zeit · <b>${tzCity()}</b></div>
       <div class="ob-spacer"></div>
       <button class="btn btn-pri btn-wide" onclick="doJoin()">Beitreten</button></div>`;
@@ -1159,35 +1195,35 @@ const NAME_BLOCK=['hitler','heilhit','siegheil','nazi','swastik','hakenkreuz','k
 function normName(s){return (s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/\u00df/g,'s').replace(/[1!|]/g,'i').replace(/3/g,'e').replace(/0/g,'o').replace(/4/g,'a').replace(/[5$]/g,'s').replace(/7/g,'t').replace(/@/g,'a').replace(/[^a-z]/g,'');}
 function nameAllowed(s){const t=(s||'').trim();if(t.length<2)return{ok:false,msg:'Name ist zu kurz.'};if(t.length>24)return{ok:false,msg:'Name ist zu lang (max. 24 Zeichen).'};const n=normName(t);if(n.length<2)return{ok:false,msg:'Bitte einen echten Namen verwenden.'};for(const w of NAME_BLOCK){if(n.includes(w))return{ok:false,msg:'Dieser Name ist nicht erlaubt. Bitte wähle einen anderen.'};}return{ok:true};}
 async function doCreate(){
-  const lg=($('#ob-league').value||'').trim(), name=($('#ob-name').value||'').trim();
-  if(!lg)return toast('Liga-Name fehlt'); if(!name)return toast('Dein Name fehlt');
-  const _cn=nameAllowed(name); if(!_cn.ok)return toast(_cn.msg);
+  const lg=($('#ob-league').value||'').trim();
+  const name=(DB.me&&DB.me.name)||''; if(!name)return toast('Bitte zuerst registrieren.');
+  if(!lg)return toast('Liga-Name fehlt');
   const _cl=nameAllowed(lg); if(!_cl.ok)return toast('Liga-Name nicht erlaubt — bitte anders benennen.');
-  const fav=($('#ob-fav')||{}).value||'', tz=detectTz();
+  const fav=($('#ob-fav')||{}).value||(DB.me&&DB.me.fav)||'', tz=(DB.me&&DB.me.tz)||detectTz();
   if(CLOUD){
     let code=genCode(), made=false;
     for(let i=0;i<10;i++){ const {error}=await sb.rpc('create_league',{p_code:code,p_name:lg,p_owner_name:name}); if(!error){made=true;break;} console.warn('create try',error); code=genCode(); }
     if(!made)return toast('Konnte Liga nicht erstellen — nochmal versuchen');
-    DB.me={name,fav,tz,role:'admin'}; DB.league={name:lg,code,role:'admin',members:[name]};
+    DB.me=Object.assign({},DB.me,{name,fav,tz,role:'admin'}); DB.league={name:lg,code,role:'admin',members:[name]};
     await persist(); renderOnboard('created'); return;
   }
   const reg=await leaguesReg(); let code=genCode(),guard=0; while(reg[code]&&guard++<60)code=genCode();
   reg[code]={name:lg,owner:name,members:[name],created:Date.now()};
   await sset('wm26:leagues',reg);
-  DB.me={name,fav,tz,role:'admin'};
+  DB.me=Object.assign({},DB.me,{name,fav,tz,role:'admin'});
   DB.league={name:lg,code,role:'admin',members:[name]};
   await persist(); renderOnboard('created');
 }
 async function doJoin(){
-  const code=($('#ob-code').value||'').trim().toUpperCase(), name=($('#ob-name').value||'').trim();
-  if(code.length<4)return toast('Code zu kurz'); if(!name)return toast('Dein Name fehlt');
-  const _cn=nameAllowed(name); if(!_cn.ok)return toast(_cn.msg);
-  const fav=($('#ob-fav')||{}).value||'', tz=detectTz();
+  const code=($('#ob-code').value||'').trim().toUpperCase();
+  const name=(DB.me&&DB.me.name)||''; if(!name)return toast('Bitte zuerst registrieren.');
+  if(code.length<4)return toast('Code zu kurz');
+  const fav=($('#ob-fav')||{}).value||(DB.me&&DB.me.fav)||'', tz=(DB.me&&DB.me.tz)||detectTz();
   if(CLOUD){
     const {error:je}=await sb.rpc('join_league',{p_code:code,p_name:name});
     if(je){ const mm=(je.message||'').toLowerCase(); if(mm.includes('not found'))return toast('Diese Liga gibt es nicht — prüfe den Code.'); console.warn('join',je); return toast('Konnte nicht beitreten: '+(je.message||je.code||'Fehler')); }
     let lname='Liga '+code; try{ const {data:lg}=await sb.from('leagues').select('name').eq('code',code).maybeSingle(); if(lg&&lg.name)lname=lg.name; }catch(e){}
-    DB.me={name,fav,tz,role:'member'}; DB.league={name:lname,code,role:'member',members:[name]};
+    DB.me=Object.assign({},DB.me,{name,fav,tz,role:'member'}); DB.league={name:lname,code,role:'member',members:[name]};
     await persist();
     if(PENDING_REF){ try{ await sb.rpc('record_referral',{p_referrer:PENDING_REF,p_code:code}); }catch(e){console.warn('ref',e);} PENDING_REF=null; }
     enterApp(); return;
@@ -1195,7 +1231,7 @@ async function doJoin(){
   const reg=await leaguesReg(); const lg=reg[code];
   if(!lg)return toast('Diese Liga gibt es nicht — prüfe den Code.');
   if(!lg.members.includes(name)){lg.members.push(name);await sset('wm26:leagues',reg);}
-  DB.me={name,fav,tz,role:'member'};
+  DB.me=Object.assign({},DB.me,{name,fav,tz,role:'member'});
   DB.league={name:lg.name,code,role:'member',members:lg.members.slice()};
   await persist(); enterApp();
 }
@@ -1939,7 +1975,7 @@ async function adminFetchUsers(){
   if(!CLOUD||!sb){ S.admUsers=[]; S.admUsersErr='Nur im Online-Modus.'; return; }
   try{ const {data,error}=await sb.rpc('admin_all_users');
     if(error){ S.admUsers=[]; S.admUsersErr='RPC-Fehler: '+(error.message||error.code||'?'); return; }
-    S.admUsers=(data||[]).map(u=>({uid:u.uid,uname:u.uname,email:u.email||'',fav:u.fav,banned:u.banned,state:u.state||{}}))
+    S.admUsers=(data||[]).map(u=>({uid:u.uid,uname:u.uname,email:u.email||'',username:(u.state&&u.state.me&&u.state.me.username)||'',fav:u.fav,banned:u.banned,state:u.state||{}}))
       .sort((a,b)=>pointsForState(b.state)-pointsForState(a.state)); S.admUsersErr=null;
   }catch(e){ S.admUsers=[]; S.admUsersErr='Ausnahme: '+String(e&&e.message||e); }
 }
@@ -1954,7 +1990,7 @@ function renderAdminUsers(){
       const pts=pointsForState(u.state||{}); const fav=u.state&&u.state.me&&u.state.me.fav;
       const av=fav&&TEAMS[fav]?`<div class="lb-av flag-av" style="width:30px;height:30px">${fi(fav)}</div>`:`<div class="lb-av" style="width:30px;height:30px">${esc((u.uname||'?')[0].toUpperCase())}</div>`;
       return `<button class="am-row" onclick="openAdminUser('${u.uid}')"><div class="am-line">
-        <span class="am-tm">${av}<span style="min-width:0;display:flex;flex-direction:column"><span class="am-nm">${esc(u.uname||'Spieler')}${u.banned?' <span class="ban-badge">gesperrt</span>':''}</span>${u.email?`<span class="am-mail">${esc(u.email)}</span>`:''}</span></span>
+        <span class="am-tm">${av}<span style="min-width:0;display:flex;flex-direction:column"><span class="am-nm">${esc(u.uname||'Spieler')}${u.banned?' <span class="ban-badge">gesperrt</span>':''}</span>${(u.username||u.email)?`<span class="am-mail">${esc(u.username?('@'+u.username):u.email)}</span>`:''}</span></span>
         <span class="am-res set" style="background:${u.banned?'var(--muted)':'var(--accent)'}">${pts}</span></div></button>`;
     }).join('');
   }
@@ -1975,7 +2011,7 @@ function openAdminUser(uid){
   if(!tips)tips=`<p class="note">Noch keine Tipps abgegeben.</p>`;
   const sc=st.special&&st.special.scorer?pl(st.special.scorer):null, as=st.special&&st.special.assist?pl(st.special.assist):null;
   const special=(sc||as)?`<div class="adm-h" style="margin-top:18px">Sondertipps</div><div class="utip"><span class="utip-m">${sc?`Torschützenkönig: <b>${esc(sc.name)}</b>`:''}${sc&&as?' · ':''}${as?`Vorlagen: <b>${esc(as.name)}</b>`:''}</span></div>`:'';
-  sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2 style="margin:0">${esc(u.uname||'Spieler')}</h2><div class="ss">${u.email?esc(u.email)+' · ':''}${pointsForState(st)} Punkte · ${u.banned?'gesperrt':'aktiv'}</div></div>
+  sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2 style="margin:0">${esc(u.uname||'Spieler')}</h2><div class="ss">${u.username?('@'+esc(u.username)+' · '):(u.email?esc(u.email)+' · ':'')}${pointsForState(st)} Punkte · ${u.banned?'gesperrt':'aktiv'}</div></div>
     <div class="sheet-bd">
       <button class="btn ${u.banned?'btn-pri':'btn-out'} btn-wide" onclick="adminToggleBan('${u.uid}',${u.banned?'false':'true'})">${u.banned?svg(I.check)+' Account entsperren':svg(I.x)+' Account sperren'}</button>
       <div class="adm-h" style="margin-top:18px">Tipps (${Object.keys(preds).length})</div>
