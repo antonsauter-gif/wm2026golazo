@@ -720,6 +720,22 @@
   .rem{ display:flex; align-items:center; gap:9px; margin:2px 2px 13px; font-size:13.5px; color:var(--ink-2); cursor:pointer; user-select:none; }
   .rem input{ width:18px; height:18px; accent-color:var(--accent); flex-shrink:0; }
   .opt{ font-weight:600; color:var(--ink-3); font-size:11px; text-transform:uppercase; letter-spacing:.04em; margin-left:4px; }
+  .ob-opts{ display:flex; flex-direction:column; gap:11px; margin-top:26px; }
+  .ob-opt{ display:flex; align-items:center; gap:13px; width:100%; text-align:left; background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:15px; cursor:pointer; transition:border-color .15s ease, transform .05s ease; }
+  .ob-opt:hover{ border-color:var(--accent); }
+  .ob-opt:active{ transform:scale(.99); }
+  .ob-opt-ic{ width:42px; height:42px; border-radius:12px; background:var(--field); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .ob-opt-ic svg{ width:20px; height:20px; stroke:var(--accent); fill:none; stroke-width:2.2; }
+  .ob-opt-tx{ flex:1; min-width:0; }
+  .ob-opt-t{ font-weight:800; font-size:15.5px; color:var(--ink); }
+  .ob-opt-s{ font-size:12.5px; color:var(--ink-2); line-height:1.4; margin-top:2px; }
+  .ob-opt-go{ width:18px; height:18px; stroke:var(--ink-3); fill:none; stroke-width:2; flex-shrink:0; }
+  .ob-feats{ display:flex; align-items:center; justify-content:center; gap:8px; margin-top:24px; font-size:12px; color:var(--ink-3); font-weight:600; }
+  .ob-go{ margin-top:24px; }
+  .ob-done-ic{ width:54px; height:54px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; margin-bottom:18px; }
+  .ob-done-ic svg{ width:28px; height:28px; stroke:#fff; fill:none; stroke-width:2.6; }
+  .code-in{ text-transform:uppercase; font-family:var(--fd); font-weight:700; letter-spacing:.14em; font-size:20px; text-align:center; }
+  .dh-cur{ display:inline-block; margin-top:11px; font-size:12.5px; font-weight:800; color:#fff; background:rgba(255,255,255,.16); border-radius:99px; padding:5px 13px; }
 </style>
 </head>
 <body>
@@ -832,11 +848,11 @@ function renderAuth(mode){
     <div class="ob-top" style="margin-bottom:20px"><div class="ob-mark">${MARK}</div><div class="ob-wm">Golazo</div><div class="ob-tag">WM 2026 · Tippspiel & Fantasy</div></div>
     <div class="seg-pos seg-auth"><button class="${!su?'on':''}" onclick="renderAuth('login')">Anmelden</button><button class="${su?'on':''}" onclick="renderAuth('signup')">Registrieren</button></div>
     ${su?`
-      <div class="field"><label>Anzeigename</label><input id="au-name" autocomplete="off" maxlength="24" placeholder="z.B. Anton"><div class="fld-h">So erscheinst du in der Rangliste — frei wählbar.</div></div>
-      <div class="field"><label>Benutzername</label><input id="au-user" autocomplete="username" maxlength="20" placeholder="anton_s" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')"><div class="fld-h">Zum Anmelden · einmalig vergeben · nicht änderbar.</div></div>
+      <div class="field"><label>Anzeigename</label><input id="au-name" autocomplete="off" maxlength="24" placeholder="Dein Anzeigename"><div class="fld-h">So erscheinst du in der Rangliste — frei wählbar.</div></div>
+      <div class="field"><label>Benutzername</label><input id="au-user" autocomplete="username" maxlength="20" placeholder="dein_benutzername" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')"><div class="fld-h">Zum Anmelden · einmalig vergeben · nicht änderbar.</div></div>
       <div class="field"><label>Passwort</label><input id="au-pw" type="password" autocomplete="new-password" placeholder="mind. 8 Zeichen"></div>
     `:`
-      <div class="field"><label>Benutzername</label><input id="au-user" autocomplete="username" placeholder="anton_s" oninput="this.value=this.value.toLowerCase()"></div>
+      <div class="field"><label>Benutzername</label><input id="au-user" autocomplete="username" placeholder="dein_benutzername" oninput="this.value=this.value.toLowerCase()"></div>
       <div class="field"><label>Passwort</label><input id="au-pw" type="password" autocomplete="current-password" placeholder="dein Passwort" onkeydown="if(event.key==='Enter')doLogin()"></div>
     `}
     <label class="rem"><input type="checkbox" id="au-rem" checked onchange="setRemember(this.checked)"><span>Angemeldet bleiben</span></label>
@@ -1147,47 +1163,58 @@ function tzCity(){const tz=(DB.me&&DB.me.tz)||detectTz();return (tz.split('/').p
 function genCode(){const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<5;i++)s+=a[Math.floor(Math.random()*a.length)];return s;}
 function renderOnboard(mode){
   mode=mode||'welcome';
+  const favOpts=`<option value="">— wählen —</option>${Object.keys(TEAMS).sort((a,b)=>T(a).n.localeCompare(T(b).n)).map(k=>`<option value="${k}">${esc(T(k).n)}</option>`).join('')}`;
   if(mode==='welcome'){
     app().innerHTML=`<div class="ob">
       <div class="ob-top">
         <div class="ob-mark">${MARK}</div>
         <div class="ob-wm">Golazo</div>
-        <div class="ob-tag">WM 2026 · Tippen & Fantasy</div>
+        <div class="ob-tag">WM 2026 · Tippspiel & Fantasy</div>
       </div>
       <div class="ob-body">
-        <h1>Willkommen.</h1>
-        <p>Tippe täglich die Spiele, wähle bei jedem Match deinen Star-Spieler und kämpf mit deinen Freunden um Platz 1 — Tag für Tag durchs Turnier.</p>
-        <div class="ob-actions">
-          <button class="btn btn-pri btn-wide" onclick="renderOnboard('create')">Neue Liga erstellen</button>
-          <button class="btn btn-out btn-wide" onclick="renderOnboard('join')">Mit Code beitreten</button>
-          <div class="ob-mini">1272 Spieler · alle 48 Teams · inkl. Schweiz</div>
+        <h1>Willkommen</h1>
+        <p>Tippe jeden Tag die Spiele, wähle bei jedem Match deinen Star — und kämpf mit deinen Freunden um Platz 1.</p>
+        <div class="ob-opts">
+          <button class="ob-opt" onclick="renderOnboard('create')">
+            <div class="ob-opt-ic">${svg(I.plus)}</div>
+            <div class="ob-opt-tx"><div class="ob-opt-t">Neue Liga erstellen</div><div class="ob-opt-s">Starte eine Tipprunde und lade Freunde mit einem Code ein.</div></div>
+            ${svg(I.chevR,'ob-opt-go')}
+          </button>
+          <button class="ob-opt" onclick="renderOnboard('join')">
+            <div class="ob-opt-ic">${svg(I.bolt)}</div>
+            <div class="ob-opt-tx"><div class="ob-opt-t">Liga beitreten</div><div class="ob-opt-s">Du hast einen Code von Freunden bekommen? Hier rein damit.</div></div>
+            ${svg(I.chevR,'ob-opt-go')}
+          </button>
         </div>
+        <div class="ob-feats"><span>Alle 48 Teams</span><span>·</span><span>72 Gruppenspiele</span><span>·</span><span>komplett gratis</span></div>
       </div></div>`;
   } else if(mode==='create'){
     app().innerHTML=`<div class="ob-step">
       <button class="ob-back" onclick="renderOnboard('welcome')">${svg(I.chevL)} Zurück</button>
-      <h2>Neue Liga</h2><div class="sub">Gib eurer Tipprunde einen Namen. Den Einladungscode bekommst du gleich danach.</div>
-      <div class="field"><label>Liga-Name</label><input id="ob-league" placeholder="z.B. WM-Crew Meilen" autocomplete="off"></div>
-      <div class="field"><label>Lieblingsteam <span class="opt">optional</span></label><select id="ob-fav"><option value="">— wählen —</option>${Object.keys(TEAMS).sort((a,b)=>T(a).n.localeCompare(T(b).n)).map(k=>`<option value="${k}">${esc(T(k).n)}</option>`).join('')}</select><div class="fld-h">Erscheint als Flagge bei deinem Namen.</div></div>
+      <h2>Neue Liga</h2>
+      <div class="sub">Gib eurer Tipprunde einen Namen. Den Einladungscode bekommst du gleich danach.</div>
+      <div class="field"><label>Liga-Name</label><input id="ob-league" placeholder="z.B. WM-Crew Meilen" autocomplete="off" maxlength="30"></div>
+      <div class="field"><label>Lieblingsteam <span class="opt">optional</span></label><select id="ob-fav">${favOpts}</select><div class="fld-h">Erscheint als Flagge bei deinem Namen.</div></div>
       <div class="ob-region">${svg(I.clock)} Anstosszeiten in deiner Zeit · <b>${tzCity()}</b></div>
-      <div class="ob-spacer"></div>
-      <button class="btn btn-pri btn-wide" onclick="doCreate()">Liga erstellen</button></div>`;
+      <button class="btn btn-pri btn-wide ob-go" onclick="doCreate()">Liga erstellen</button></div>`;
   } else if(mode==='join'){
     app().innerHTML=`<div class="ob-step">
       <button class="ob-back" onclick="renderOnboard('welcome')">${svg(I.chevL)} Zurück</button>
-      <h2>Liga beitreten</h2><div class="sub">Gib den 5-stelligen Code ein, den du von Freunden bekommen hast.</div>
-      <div class="field"><label>Liga-Code</label><input id="ob-code" placeholder="z.B. K7P2X" autocomplete="off" value="${esc(PENDING_CODE||'')}" style="text-transform:uppercase;font-weight:800;letter-spacing:.1em;font-size:18px"></div>
-      <div class="field"><label>Lieblingsteam <span class="opt">optional</span></label><select id="ob-fav"><option value="">— wählen —</option>${Object.keys(TEAMS).sort((a,b)=>T(a).n.localeCompare(T(b).n)).map(k=>`<option value="${k}">${esc(T(k).n)}</option>`).join('')}</select><div class="fld-h">Erscheint als Flagge bei deinem Namen.</div></div>
+      <h2>Liga beitreten</h2>
+      <div class="sub">Gib den 5-stelligen Code ein, den du von Freunden bekommen hast.</div>
+      <div class="field"><label>Liga-Code</label><input id="ob-code" placeholder="z.B. K7P2X" autocomplete="off" maxlength="6" value="${esc(PENDING_CODE||'')}" oninput="this.value=this.value.toUpperCase()" class="code-in"></div>
+      <div class="field"><label>Lieblingsteam <span class="opt">optional</span></label><select id="ob-fav">${favOpts}</select><div class="fld-h">Erscheint als Flagge bei deinem Namen.</div></div>
       <div class="ob-region">${svg(I.clock)} Anstosszeiten in deiner Zeit · <b>${tzCity()}</b></div>
-      <div class="ob-spacer"></div>
-      <button class="btn btn-pri btn-wide" onclick="doJoin()">Beitreten</button></div>`;
+      <button class="btn btn-pri btn-wide ob-go" onclick="doJoin()">Beitreten</button></div>`;
   } else if(mode==='created'){
     app().innerHTML=`<div class="ob-step">
-      <h2 style="margin-top:8px">Liga ist bereit</h2><div class="sub">Schick diesen Code an deine Freunde. Sie öffnen den gleichen Link, tippen „Mit Code beitreten" und sind dabei.</div>
+      <div class="ob-done-ic">${svg(I.check)}</div>
+      <h2>Liga ist bereit</h2>
+      <div class="sub">Teile den Code mit deinen Freunden — sie öffnen den Link, tippen „Liga beitreten" und sind dabei.</div>
       <div class="codecard"><div class="k">Euer Liga-Code</div><div class="code">${DB.league.code}</div><div class="hint">${esc(DB.league.name)}</div></div>
-      <button class="btn btn-out btn-wide" style="margin-bottom:10px" onclick="copyCode()">${svg(I.share)} Code kopieren & teilen</button>
-      <div class="ob-spacer"></div>
-      <button class="btn btn-dark btn-wide" onclick="enterApp()">${svg(I.bolt)} Jetzt loslegen</button></div>`;
+      <button class="btn btn-pri btn-wide" onclick="copyCode()">${svg(I.share)} Code teilen</button>
+      <button class="btn btn-dark btn-wide" style="margin-top:10px" onclick="enterApp()">${svg(I.bolt)} Jetzt loslegen</button>
+      <div class="ob-mini">Du kannst den Code später jederzeit in den Einstellungen teilen.</div></div>`;
   }
 }
 async function leaguesReg(){return (await sget('wm26:leagues'))||{};}
@@ -1276,7 +1303,9 @@ function totalPoints(){return myTipPoints()+myStarPoints()+mySpecialPoints()+(DB
 
 /* ============================================================ HEUTE ============================================================ */
 function dateList(){return [...new Set(DB.fixtures.map(f=>localDayKey(f.ko)))].sort();}
-function focusDay(){const dates=dateList();const t=todayStr();if(S.day&&dates.includes(S.day))return S.day;if(dates.includes(t))return t;return dates.find(d=>d>t)||dates[dates.length-1];}
+function autoCurrentDay(){const dates=dateList();if(!dates.length)return '';for(const d of dates){const g=DB.fixtures.filter(f=>localDayKey(f.ko)===d);if(!(g.length>0&&g.every(f=>DB.results[f.id])))return d;}return dates[dates.length-1];}
+function focusDay(){const dates=dateList();if(!dates.length)return '';if(S.day&&dates.includes(S.day))return S.day;return autoCurrentDay();}
+function jumpCurrent(){S.day=null;render();}
 function viewHeute(){
   const dates=dateList(), t=todayStr(), day=focusDay(), idx=dates.indexOf(day);
   const games=DB.fixtures.filter(f=>localDayKey(f.ko)===day).sort((a,b)=>new Date(a.ko)-new Date(b.ko));
@@ -1289,7 +1318,7 @@ function viewHeute(){
     hero=`<div class="day-hero pre"><div class="dh-k">Noch ${dleft} Tage bis zur WM</div><div class="dh-nav"><button class="dn-btn" ${idx<=0?'disabled':''} onclick="setDay('${dates[idx-1]||''}')">${svg(I.chevL)}</button><div class="dh-big">Eröffnungstag</div><button class="dn-btn" ${idx>=dates.length-1?'disabled':''} onclick="setDay('${dates[idx+1]||''}')">${svg(I.chevR)}</button></div><div class="dh-sub">${games[0]?koDayLong(games[0].ko):''} · Spieltag ${md}</div></div>`;
   } else {
     const isToday=day===t;
-    hero=`<div class="day-hero"><div class="dh-k">${isToday?'Heute · ':''}Spieltag ${md} · ${games.length} Spiel${games.length!==1?'e':''}</div><div class="dh-nav"><button class="dn-btn" ${idx<=0?'disabled':''} onclick="setDay('${dates[idx-1]||''}')">${svg(I.chevL)}</button><div class="dh-big">${games[0]?koDayLong(games[0].ko):"—"}</div><button class="dn-btn" ${idx>=dates.length-1?'disabled':''} onclick="setDay('${dates[idx+1]||''}')">${svg(I.chevR)}</button></div><div class="dh-sub">tippe alle Partien dieses Tages</div></div>`;
+    hero=`<div class="day-hero"><div class="dh-k">${isToday?'Heute · ':''}Spieltag ${md} · ${games.length} Spiel${games.length!==1?'e':''}</div><div class="dh-nav"><button class="dn-btn" ${idx<=0?'disabled':''} onclick="setDay('${dates[idx-1]||''}')">${svg(I.chevL)}</button><div class="dh-big">${games[0]?koDayLong(games[0].ko):"—"}</div><button class="dn-btn" ${idx>=dates.length-1?'disabled':''} onclick="setDay('${dates[idx+1]||''}')">${svg(I.chevR)}</button></div><div class="dh-sub">tippe alle Partien dieses Tages</div>${day!==autoCurrentDay()?`<button class="dh-cur" onclick="jumpCurrent()">Zum aktuellen Spieltag ›</button>`:''}</div>`;
   }
   let html=hero;
 
