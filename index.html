@@ -709,6 +709,12 @@
   .utip-s{ color:var(--accent);font-weight:700;flex-shrink:0; }
   .utip .flag{ width:18px;height:13px;border-radius:2px; }
   .am-mail{ font-size:11px;color:var(--ink-3);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px; }
+  .lb-avwrap{ position:relative; flex-shrink:0; }
+  .lb-crown{ position:absolute; top:-8px; left:50%; transform:translateX(-50%) rotate(-4deg); width:18px; height:18px; z-index:3; pointer-events:none; }
+  .lb-crown svg{ width:100%; height:100%; display:block; filter:drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
+  .tip-btns{ display:flex; gap:8px; margin-top:11px; }
+  .tip-btns .btn{ flex:1; margin:0; }
+  .tip-btns .btn[disabled]{ opacity:.4; }
 </style>
 </head>
 <body>
@@ -836,7 +842,7 @@ async function doSignup(){ const email=($('#au-mail').value||'').trim(), pw=$('#
 async function doLogin(){ const email=($('#au-mail').value||'').trim(), pw=$('#au-pw').value||''; if(!email||!pw)return authErr('E-Mail und Passwort eingeben'); authErr('…');
   let r; try{ r=await sb.auth.signInWithPassword({email,password:pw}); }catch(e){ return authErr('Keine Verbindung — Internet prüfen und nochmal.'); }
   if(r.error)return authErr(authMsg(r.error.message)); USER=r.data.session.user; await afterAuth(); }
-async function afterAuth(){ const FX=fxList(); await loadCloud(FX); await loadReferrals(); await loadAdminFlag(); if(DB.banned){renderBanned();return;} if(!DB.me||!DB.league){ renderOnboard('welcome'); return;} await ensureMembership(); S.tab='heute'; render(); persist(); }
+async function afterAuth(){ const FX=fxList(); await loadCloud(FX); await loadReferrals(); await loadAdminFlag(); if(DB.banned){renderBanned();return;} if(!DB.me||!DB.league){ renderOnboard('welcome'); return;} await ensureMembership(); S.tab='heute'; render(); persist(); maybeSharePrompt(); }
 async function doLogout(){ try{ await sb.auth.signOut(); }catch(e){} USER=null; DB=EMPTY_DB(); closeSheet(); renderAuth('login'); }
 /* ============================================================
    OFFIZIELLE ERGEBNISSE — von dir (dem Betreiber) gepflegt.
@@ -1057,7 +1063,7 @@ function koDayLong(ko){const d=new Date(ko);return ['Sonntag','Montag','Dienstag
 function koShort(ko){const d=new Date(ko);return d.getDate()+'. '+MO[d.getMonth()];}
 
 let DB={ me:null, fixtures:[], preds:{}, results:{}, trio:{}, stars:{}, league:null, special:{}, refPts:0 };
-let S={ tab:'heute', day:null, fanMD:1, selMd:1, ppPos:'all', ppQuery:'', spFid:null, spPos:'all', grp:null, lbView:'liga', admin:false, admMd:1, torView:'tore', spField:null, spQuery:'' };
+let S={ tab:'heute', day:null, fanMD:1, selMd:1, ppPos:'all', ppQuery:'', spFid:null, spPos:'all', grp:null, lbView:'liga', admin:false, admMd:1, torView:'tore', spField:null, spQuery:'', draft:{} };
 
 const $=s=>document.querySelector(s);
 const app=()=>document.getElementById('app');
@@ -1069,6 +1075,14 @@ function toast(m){let t=$('#toast');if(!t){t=document.createElement('div');t.id=
 function confetti(n,oy){if(DB.fxOn===false)return;const host=app();if(!host)return;const layer=document.createElement('div');layer.className='fx';host.appendChild(layer);const cx=host.clientWidth/2,cy=host.clientHeight*(oy||.4);const cols=['#E90052','#963CFF','#22B2F0','#37003C'];n=n||22;for(let i=0;i<n;i++){const p=document.createElement('span');p.className='fx-b';p.style.background=cols[i%4];const w=5+Math.random()*6;p.style.width=w+'px';p.style.height=(w*1.6)+'px';p.style.left=cx+'px';p.style.top=cy+'px';layer.appendChild(p);const a=Math.random()*Math.PI*2,d=80+Math.random()*150,dx=Math.cos(a)*d,dy=Math.sin(a)*d-60,r=Math.random()*720-360;p.animate([{transform:'translate(0,0) rotate(0)',opacity:1},{transform:`translate(${dx}px,${dy+160}px) rotate(${r}deg)`,opacity:0}],{duration:900+Math.random()*500,easing:'cubic-bezier(.2,.6,.3,1)',fill:'forwards'});}setTimeout(()=>layer.remove(),1600);}
 
 async function loadReferrals(){ if(!CLOUD||!sb||!USER)return; try{ const {data}=await sb.rpc('my_referrals'); DB.refPts=((data||0))*REF_BONUS; }catch(e){ console.warn('refs',e); } }
+let _sharePromptDone=false;
+function maybeSharePrompt(){ if(_sharePromptDone||!CLOUD||!DB.league)return; _sharePromptDone=true; setTimeout(openSharePrompt,800); }
+function openSharePrompt(){ if(!DB.league)return; sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>Hol dir Extra-Punkte</h2><div class="ss">Teile Golazo & deine Liga</div></div>
+    <div class="sheet-bd">
+      <p class="note" style="margin:2px 2px 14px;line-height:1.5">Für jeden Freund, der über deinen Link ein Konto erstellt und beitritt, bekommst du <b>+${REF_BONUS} Punkt${REF_BONUS===1?'':'e'}</b> in der Rangliste. Schick deinen Liga-Link in die Gruppe!</p>
+      <button class="btn btn-pri btn-wide" onclick="closeSheet();copyCode()">${svg(I.share)} Liga-Link teilen</button>
+      <button class="btn btn-soft btn-wide btn-sm" style="margin-top:9px" onclick="closeSheet()">Später</button>
+    </div>`); }
 async function loadAdminFlag(){ DB.isAdmin=false; if(!CLOUD||!sb||!USER)return; try{ const {data}=await sb.rpc('is_app_admin'); DB.isAdmin=!!data; }catch(e){ console.warn('admflag',e); } }
 async function boot(){
   buildPlayers();
@@ -1077,7 +1091,7 @@ async function boot(){
   initCloud();
   if(CLOUD){
     try{ const {data}=await sb.auth.getSession(); const session=data&&data.session;
-      if(session){ USER=session.user; await loadCloud(FX); await loadReferrals(); await loadAdminFlag(); if(DB.banned){renderBanned();return;} if(!DB.me||!DB.league){renderOnboard('welcome');return;} await ensureMembership(); render(); persist(); return; } }catch(e){ console.warn('session',e); }
+      if(session){ USER=session.user; await loadCloud(FX); await loadReferrals(); await loadAdminFlag(); if(DB.banned){renderBanned();return;} if(!DB.me||!DB.league){renderOnboard('welcome');return;} await ensureMembership(); render(); persist(); maybeSharePrompt(); return; } }catch(e){ console.warn('session',e); }
     renderAuth('signup'); return;
   }
   const saved=await sget(KEY);
@@ -1269,6 +1283,10 @@ function matchCard(f){
   const p=DB.preds[f.id]||{},r=DB.results[f.id],pts=scorePred(p,r),done=!!r;
   const locked=done||Date.now()>=new Date(f.ko).getTime();
   const tipped=p.h!=null&&p.a!=null;
+  const draft=(S.draft&&S.draft[f.id])||null;
+  const eh=draft&&draft.h!=null?draft.h:(p.h!=null?p.h:null);
+  const ea=draft&&draft.a!=null?draft.a:(p.a!=null?p.a:null);
+  const canSubmit=eh!=null&&ea!=null&&(!tipped||eh!==p.h||ea!==p.a)&&!locked;
   const badge=done?`<span class="m-badge result">Endstand ${r.h}:${r.a}</span>`:(locked?(tipped?`<span class="m-badge tipped">✓ getippt</span>`:`<span class="m-badge live">angepfiffen</span>`):(tipped?`<span class="m-badge tipped">✓ getippt</span>`:`<span class="m-badge open">offen</span>`));
   const hHit=done&&p.h===r.h, aHit=done&&p.a===r.a;
   return `<div class="match">
@@ -1277,12 +1295,13 @@ function matchCard(f){
     <div class="m-row">
       <div class="m-side"><span class="m-fl">${fi(f.home)}</span><span class="m-nm">${esc(T(f.home).n)}</span></div>
       <div class="m-in">
-        <input class="si ${hHit?'hit':''}" type="number" min="0" max="20" inputmode="numeric" value="${p.h!=null?p.h:''}" ${locked?'disabled':''} onchange="setPred(${f.id},'h',this.value)" placeholder="–">
+        <input class="si ${hHit?'hit':''}" type="number" min="0" max="20" inputmode="numeric" value="${eh!=null?eh:''}" ${locked?'disabled':''} oninput="setDraft(${f.id},'h',this.value)" placeholder="–">
         <span class="m-x">:</span>
-        <input class="si ${aHit?'hit':''}" type="number" min="0" max="20" inputmode="numeric" value="${p.a!=null?p.a:''}" ${locked?'disabled':''} onchange="setPred(${f.id},'a',this.value)" placeholder="–">
+        <input class="si ${aHit?'hit':''}" type="number" min="0" max="20" inputmode="numeric" value="${ea!=null?ea:''}" ${locked?'disabled':''} oninput="setDraft(${f.id},'a',this.value)" placeholder="–">
       </div>
       <div class="m-side r"><span class="m-fl">${fi(f.away)}</span><span class="m-nm">${esc(T(f.away).n)}</span></div>
     </div>
+    ${!locked?`<div class="tip-btns"><button id="submit-${f.id}" class="btn btn-pri btn-sm" ${canSubmit?'':'disabled'} onclick="submitTip(${f.id})">${tipped?'Tipp aktualisieren':'Tipp einreichen'}</button><button class="btn btn-out btn-sm" ${tipped?'':'disabled'} onclick="removeTip(${f.id})">Entfernen</button></div>`:''}
     ${starControl(f)}
     ${done?`<div class="m-ft"><span class="m-fin">dein Tipp ${tipped?`${p.h}:${p.a}`:'—'}</span><span class="m-pt ${pts>=5?'p5':pts>0?'p2':'p0'}">${pts>=5?'+5 exakt':pts>0?'+2 Tendenz':'+0'}</span></div>`:''}
   </div>`;
@@ -1293,6 +1312,9 @@ function setPred(id,side,val){
   if(f){const games=DB.fixtures.filter(x=>x.md===f.md);const mdMade=games.filter(x=>{const q=DB.preds[x.id];return q&&q.h!=null&&q.a!=null;}).length;const hd=document.querySelector('#md-'+f.md+' .mday-prog');if(hd)hd.textContent=mdMade+'/'+games.length;}
   const pill=document.querySelector('.hd-pts .v');if(pill)pill.textContent=totalPoints();
 }
+function setDraft(id,side,val){ S.draft=S.draft||{}; S.draft[id]=S.draft[id]||{}; S.draft[id][side]= val===''?null:Math.max(0,Math.min(20,parseInt(val)||0)); const p=DB.preds[id]||{}; const d=S.draft[id]; const eh=d.h!=null?d.h:(p.h!=null?p.h:null), ea=d.a!=null?d.a:(p.a!=null?p.a:null); const sub=p.h!=null&&p.a!=null; const can=eh!=null&&ea!=null&&(!sub||eh!==p.h||ea!==p.a); const b=document.getElementById('submit-'+id); if(b){ b.disabled=!can; b.textContent=sub?'Tipp aktualisieren':'Tipp einreichen'; } }
+function submitTip(id){ const d=(S.draft&&S.draft[id])||{}; const p=DB.preds[id]||{}; const h=d.h!=null?d.h:p.h, a=d.a!=null?d.a:p.a; if(h==null||a==null)return toast('Bitte beide Tore eintragen'); DB.preds[id]={h,a}; if(S.draft)delete S.draft[id]; persist(); toast('Tipp eingereicht ✓'); render(); }
+function removeTip(id){ delete DB.preds[id]; if(S.draft)delete S.draft[id]; persist(); toast('Tipp entfernt'); render(); }
 
 /* ============================================================ GRUPPEN ============================================================ */
 function favGroup(){const fv=DB.me&&DB.me.fav;return (fv&&T(fv).g)?T(fv).g:'A';}
@@ -1345,7 +1367,7 @@ function renderStarPick(){
     let rows=pool.length?pool.map(p=>{const sel=cur===p.id;
       return `<div class="ppl ${sel?'sel':''}" onclick="setStar(${fid},'${p.id}')">
         <span class="ppl-fl">${fi(p.team)}</span>
-        <div class="ppl-i"><div class="ppl-n">${esc(p.name)}</div><div class="ppl-m">${POSLBL[p.pos]}${p.club?' · '+esc(p.club):''}${p.prob?' · '+p.prob+'%':''}</div></div>
+        <div class="ppl-i"><div class="ppl-n">${esc(p.name)}</div><div class="ppl-m">${POSLBL[p.pos]}${p.club?' · '+esc(p.club):''}</div></div>
         <span class="ppl-add ${sel?'in':''}">${sel?svg(I.check):'+'}</span></div>`;}).join(''):'<div class="sp-empty">Keine Spieler in dieser Position</div>';
     return `<div class="sel-sub">${fi(code)} ${esc(T(code).n)}</div>`+rows;
   }
@@ -1621,6 +1643,7 @@ function viewRangliste(){
   html+=`<button class="btn btn-soft btn-wide btn-sm" style="margin-top:14px" onclick="openHowItWorks()">Wie funktionieren die Punkte?</button>`;
   return html;
 }
+const CROWN='<svg class="crown-svg" viewBox="0 0 24 24" fill="#FFC107" stroke="#C8860A" stroke-width="1.2" stroke-linejoin="round"><path d="M3 17h18l-1.5-9-4.5 4-3.5-7-3.5 7-4.5-4z"/></svg>';
 function lbRow(p,rank,clickable){
   const lead=rank===1&&p.pts?' lead':'';
   const click=(clickable&&p.id)?` onclick="openMember('${p.id}')"`:'';
@@ -1629,7 +1652,7 @@ function lbRow(p,rank,clickable){
   return `<div class="lb-row${p.me?' me':''}${lead}"${click}>
     <div class="lb-rank">${rank==null?'–':rank}</div>
     <div class="lb-player">
-      ${p.fav&&TEAMS[p.fav]?`<div class="lb-av flag-av">${fi(p.fav)}</div>`:`<div class="lb-av">${(p.n||'?')[0].toUpperCase()}</div>`}
+      <div class="lb-avwrap">${(rank===1&&(p.pts||0)>0)?`<span class="lb-crown">${CROWN}</span>`:''}${p.fav&&TEAMS[p.fav]?`<div class="lb-av flag-av">${fi(p.fav)}</div>`:`<div class="lb-av">${(p.n||'?')[0].toUpperCase()}</div>`}</div>
       <div class="lb-nm">${esc(p.n)} ${meTag}</div>
     </div>
     <div class="lb-stat">${p.tip!=null?p.tip:'–'}</div>
