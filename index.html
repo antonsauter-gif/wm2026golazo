@@ -55,6 +55,7 @@
   .brand{display:flex;align-items:center;gap:9px}
   .brand .mk{width:30px;height:30px;display:block;flex-shrink:0}
   .brand .wm,.wm{font-family:var(--fd);font-weight:800;font-size:25px;letter-spacing:.01em;color:var(--ink);text-transform:uppercase;line-height:1}
+  .hd-logo{height:26px;width:auto;display:block}
 
   /* ---------- view + section labels ---------- */
   .view{flex:1;overflow-y:auto;padding:18px 16px 26px;-webkit-overflow-scrolling:touch}
@@ -1382,7 +1383,7 @@ function render(){
   ensureFixtures();
   const body=S.tab==='heute'?viewHeute():S.tab==='gruppen'?viewGruppen():S.tab==='stars'?viewStars():S.tab==='welt'?viewWelt():S.tab==='tor'?viewTor():S.tab==='ko'?viewKo():viewRangliste();
   app().innerHTML=`
-    <div class="hd"><div class="hd-row"><div class="brand">${MARK}<span class="wm">Captain League</span></div>
+    <div class="hd"><div class="hd-row"><div class="brand"><img class="hd-logo" src="${LOGO_IMG}" alt="Captain League"></div>
       <div class="hd-right"><div class="hd-pts">${svg(I.bolt,'pts-ic')}<span class="v">${totalPoints()}</span></div><button class="gear" onclick="openSettings()" aria-label="Einstellungen">${svg(I.gear)}</button></div></div></div>
     <div class="view view-${S.tab}" id="view">${body}</div>
     <nav class="tabs">${tab('heute',I.house,'Heute')}${tab('gruppen',I.cal,'Gruppen')}${tab('ko',I.koTab,'K.o.')}${tab('stars',I.star,'Captains')}${tab('rangliste',I.trophy,'Liga')}${tab('welt',I.globe,'Welt')}${tab('tor',I.shirt,'Torjäger')}</nav>
