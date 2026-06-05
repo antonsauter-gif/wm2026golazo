@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#1C1A17">
-<title>Golazo</title>
+<title>Captain League</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800;900&family=Saira+Condensed:wght@500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   /* ====================================================================
-     GOLAZO — design system (refined / editorial sport)
+     CAPTAIN LEAGUE — design system (refined / editorial sport)
      Aesthetic: warm near-black ink · cream paper · single terracotta accent
      Display: Saira Condensed · Body: Hanken Grotesk
      ==================================================================== */
@@ -358,7 +358,7 @@
   .ob-top::after{content:"";position:absolute;left:0;right:0;bottom:0;height:5px;background:var(--accent)}
   .ob-mark{width:64px;height:64px;margin-bottom:16px}
   .ob-mark .mk{width:100%;height:100%}
-  .ob-wm{font-family:var(--fd);font-weight:800;font-size:46px;letter-spacing:.01em;text-transform:uppercase;line-height:.92}
+  .ob-wm{font-family:var(--fd);font-weight:800;font-size:40px;letter-spacing:.01em;text-transform:uppercase;line-height:.92}
   .ob-tag{font-family:var(--fd);font-size:14px;font-weight:600;color:rgba(255,255,255,.62);margin-top:8px;letter-spacing:.08em;text-transform:uppercase}
   .ob-body{flex:1;padding:30px 26px calc(26px + env(safe-area-inset-bottom));display:flex;flex-direction:column}
   .ob-body h1{font-family:var(--fd);font-size:30px;font-weight:700;letter-spacing:.01em;text-transform:uppercase;margin-bottom:11px;line-height:1}
@@ -773,7 +773,7 @@ const PLAYERS_RAW=[{"n":"Lukas Hornicek","t":"CZE","p":"GK","c":"Braga","v":5.5,
 </script>
 <script>
 /* ============================================================
-   Golazo v3 — Daily-first. Heute / Spielplan / Trio / Rangliste
+   Captain League — Daily-first. Heute / Spielplan / Trio / Rangliste
    ============================================================ */
 async function sget(k){try{if(!window.storage)return null;const r=await window.storage.get(k,false);return r?JSON.parse(r.value):null;}catch(e){return null;}}
 async function sset(k,v){try{if(!window.storage)return false;await window.storage.set(k,JSON.stringify(v),false);return true;}catch(e){return false;}}
@@ -872,7 +872,7 @@ function applyRemember(){ try{ localStorage.setItem('golazo:remember', _remember
 function renderAuth(mode){
   mode=mode||'login'; const su=mode==='signup';
   app().innerHTML=`<div class="ob-step auth">
-    <div class="ob-top" style="margin-bottom:20px"><div class="ob-mark">${MARK}</div><div class="ob-wm">Golazo</div><div class="ob-tag">WM 2026 · Tippspiel & Fantasy</div></div>
+    <div class="ob-top" style="margin-bottom:20px"><div class="ob-mark">${MARK}</div><div class="ob-wm">Captain League</div><div class="ob-tag">WM 2026 · Tippspiel & Fantasy</div></div>
     <div class="seg-pos seg-auth"><button class="${!su?'on':''}" onclick="renderAuth('login')">Anmelden</button><button class="${su?'on':''}" onclick="renderAuth('signup')">Registrieren</button></div>
     ${su?`
       <div class="field"><label>Anzeigename</label><input id="au-name" autocomplete="off" maxlength="24" placeholder="Dein Anzeigename"><div class="fld-h">So erscheinst du in der Rangliste — frei wählbar.</div></div>
@@ -911,7 +911,7 @@ async function doSignup(){
   USER=sess.user; applyRemember();
   DB.me={name,username:un.clean,fav:'',tz:detectTz(),role:'member'};
   await persist();
-  renderOnboard('welcome');
+  enterMain();
 }
 async function doLogin(){
   const uraw=($('#au-user').value||'').trim(), pw=$('#au-pw').value||'';
@@ -922,7 +922,7 @@ async function doLogin(){
   if(r.error)return authErr(authMsg(r.error.message));
   USER=r.data.session.user; applyRemember(); await afterAuth();
 }
-async function afterAuth(){ const FX=fxList(); await loadCloud(FX); await loadReferrals(); await loadAdminFlag(); if(DB.banned){renderBanned();return;} if(!DB.me||!DB.league){ renderOnboard('welcome'); return;} await ensureMembership(); S.tab='heute'; render(); persist(); maybeSharePrompt(); }
+async function afterAuth(){ const FX=fxList(); await loadCloud(FX); await loadReferrals(); await loadAdminFlag(); if(DB.banned){renderBanned();return;} if(!DB.me||!DB.me.name){ renderOnboard('welcome'); return;} if(DB.league&&DB.league.code)await ensureMembership(); enterMain(); }
 async function doLogout(){ try{ await sb.auth.signOut(); }catch(e){} try{ localStorage.removeItem('golazo:remember'); sessionStorage.removeItem('golazo:alive'); }catch(e){} USER=null; DB=EMPTY_DB(); closeSheet(); renderAuth('login'); }
 /* ============================================================
    OFFIZIELLE ERGEBNISSE — von dir (dem Betreiber) gepflegt.
@@ -1226,7 +1226,7 @@ function confetti(n,oy){if(DB.fxOn===false)return;const host=app();if(!host)retu
 async function loadReferrals(){ if(!CLOUD||!sb||!USER)return; try{ const {data}=await sb.rpc('my_referrals'); DB.refPts=((data||0))*REF_BONUS; }catch(e){ console.warn('refs',e); } }
 let _sharePromptDone=false;
 function maybeSharePrompt(){ if(_sharePromptDone||!CLOUD||!DB.league)return; _sharePromptDone=true; setTimeout(openSharePrompt,800); }
-function openSharePrompt(){ if(!DB.league)return; sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>Hol dir Extra-Punkte</h2><div class="ss">Teile Golazo & deine Liga</div></div>
+function openSharePrompt(){ if(!DB.league)return; sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>Hol dir Extra-Punkte</h2><div class="ss">Teile Captain League & deine Liga</div></div>
     <div class="sheet-bd">
       <p class="note" style="margin:2px 2px 14px;line-height:1.5">Für jeden Freund, der über deinen Link ein Konto erstellt und beitritt, bekommst du <b>+${REF_BONUS} Punkt${REF_BONUS===1?'':'e'}</b> in der Rangliste. Schick deinen Liga-Link in die Gruppe!</p>
       <button class="btn btn-pri btn-wide" onclick="closeSheet();copyCode()">${svg(I.share)} Liga-Link teilen</button>
@@ -1241,7 +1241,7 @@ async function boot(){
   if(CLOUD){
     try{ const {data}=await sb.auth.getSession(); let session=data&&data.session;
       if(session){ let off=false; try{ off=localStorage.getItem('golazo:remember')==='0' && sessionStorage.getItem('golazo:alive')!=='1'; }catch(e){} if(off){ try{ await sb.auth.signOut(); }catch(e){} session=null; } }
-      if(session){ try{ sessionStorage.setItem('golazo:alive','1'); }catch(e){} USER=session.user; await loadCloud(FX); await loadReferrals(); await loadAdminFlag(); if(DB.banned){renderBanned();return;} if(!DB.me||!DB.league){renderOnboard('welcome');return;} await ensureMembership(); render(); persist(); maybeSharePrompt(); return; } }catch(e){ console.warn('session',e); }
+      if(session){ try{ sessionStorage.setItem('golazo:alive','1'); }catch(e){} USER=session.user; await loadCloud(FX); await loadReferrals(); await loadAdminFlag(); if(DB.banned){renderBanned();return;} if(!DB.me||!DB.me.name){renderOnboard('welcome');return;} if(DB.league&&DB.league.code)await ensureMembership(); enterMain(); return; } }catch(e){ console.warn('session',e); }
     renderAuth('login'); return;
   }
   const saved=await sget(KEY);
@@ -1264,7 +1264,7 @@ function renderOnboard(mode){
     app().innerHTML=`<div class="ob">
       <div class="ob-top">
         <div class="ob-mark">${MARK}</div>
-        <div class="ob-wm">Golazo</div>
+        <div class="ob-wm">Captain League</div>
         <div class="ob-tag">WM 2026 · Tippspiel & Fantasy</div>
       </div>
       <div class="ob-body">
@@ -1286,7 +1286,7 @@ function renderOnboard(mode){
       </div></div>`;
   } else if(mode==='create'){
     app().innerHTML=`<div class="ob-step">
-      <button class="ob-back" onclick="renderOnboard('welcome')">${svg(I.chevL)} Zurück</button>
+      <button class="ob-back" onclick="obCancel()">${svg(I.chevL)} Zurück</button>
       <h2>Neue Liga</h2>
       <div class="sub">Gib eurer Tipprunde einen Namen. Den Einladungscode bekommst du gleich danach.</div>
       <div class="field"><label>Liga-Name</label><input id="ob-league" placeholder="z.B. WM-Crew Meilen" autocomplete="off" maxlength="30"></div>
@@ -1295,7 +1295,7 @@ function renderOnboard(mode){
       <button class="btn btn-pri btn-wide ob-go" onclick="doCreate()">Liga erstellen</button></div>`;
   } else if(mode==='join'){
     app().innerHTML=`<div class="ob-step">
-      <button class="ob-back" onclick="renderOnboard('welcome')">${svg(I.chevL)} Zurück</button>
+      <button class="ob-back" onclick="obCancel()">${svg(I.chevL)} Zurück</button>
       <h2>Liga beitreten</h2>
       <div class="sub">Gib den 5-stelligen Code ein, den du von Freunden bekommen hast.</div>
       <div class="field"><label>Liga-Code</label><input id="ob-code" placeholder="z.B. K7P2X" autocomplete="off" maxlength="6" value="${esc(PENDING_CODE||'')}" oninput="this.value=this.value.toUpperCase()" class="code-in"></div>
@@ -1358,15 +1358,32 @@ async function doJoin(){
   DB.league={name:lg.name,code,role:'member',members:lg.members.slice()};
   await persist(); enterApp();
 }
-async function copyCode(){ const base=location.origin+location.pathname; const link=`${base}?code=${DB.league.code}&ref=${(USER&&USER.id)||''}`; const text=`⚽ Mach mit bei meiner Golazo-Tipprunde "${DB.league.name}"! Liga-Code: ${DB.league.code}`; if(navigator.share){ try{ await navigator.share({title:'Golazo · '+DB.league.name, text:text, url:link}); }catch(e){ if(e&&e.name!=='AbortError'){ try{ await navigator.clipboard.writeText(text+' '+link); toast('Link kopiert'); }catch(_){ toast('Code: '+DB.league.code); } } } return; } try{ await navigator.clipboard.writeText(text+' '+link); toast('Einladung kopiert — ab in die Gruppe!'); }catch(e){ toast('Code: '+DB.league.code); } }
+async function copyCode(){ const base=location.origin+location.pathname; const link=`${base}?code=${DB.league.code}&ref=${(USER&&USER.id)||''}`; const text=`⚽ Mach mit bei meiner Captain-League-Tipprunde "${DB.league.name}"! Liga-Code: ${DB.league.code}`; if(navigator.share){ try{ await navigator.share({title:'Captain League · '+DB.league.name, text:text, url:link}); }catch(e){ if(e&&e.name!=='AbortError'){ try{ await navigator.clipboard.writeText(text+' '+link); toast('Link kopiert'); }catch(_){ toast('Code: '+DB.league.code); } } } return; } try{ await navigator.clipboard.writeText(text+' '+link); toast('Einladung kopiert — ab in die Gruppe!'); }catch(e){ toast('Code: '+DB.league.code); } }
 function enterApp(){ S.tab='heute'; render(); }
+function enterMain(){ S.tab='heute'; render(); persist(); if(PENDING_CODE&&!DB.league){ try{toast('Liga-Einladung erkannt — tritt unter „Liga" bei.');}catch(e){} } maybeSharePrompt(); }
+function obCancel(){ if(DB.me&&DB.me.name){ S.tab='rangliste'; render(); } else { renderOnboard('welcome'); } }
+function koOf(id){ const f=DB.fixtures.find(x=>x.id===id); if(f)return f.ko; const k=(typeof KO_BY_ID!=='undefined')?KO_BY_ID[id]:null; return k?k.ko:null; }
+function tipClosed(id){ const ko=koOf(id); return ko ? (Date.now()>=new Date(ko).getTime()) : false; }
+function leagueGate(){
+  return `<div class="view-title">Meine Liga</div>
+    <div class="ko-lock" style="margin-bottom:16px">
+      <div class="ko-lock-ic">${svg(I.lock)}</div>
+      <div class="ko-lock-h">Noch keine Liga</div>
+      <div class="ko-lock-t">Erstelle eine private Tipprunde und lade Freunde per Code ein — oder tritt mit einem Code einer bestehenden Liga bei. Danach seht ihr hier eure Rangliste.</div>
+    </div>
+    <div class="ob-opts" style="margin-top:2px">
+      <button class="ob-opt" onclick="renderOnboard('create')"><div class="ob-opt-ic">${svg(I.plus)}</div><div class="ob-opt-tx"><div class="ob-opt-t">Neue Liga erstellen</div><div class="ob-opt-s">Starte eine Tipprunde und lade Freunde per Code ein.</div></div>${svg(I.chevR,'ob-opt-go')}</button>
+      <button class="ob-opt" onclick="renderOnboard('join')"><div class="ob-opt-ic">${svg(I.bolt)}</div><div class="ob-opt-tx"><div class="ob-opt-t">Liga beitreten</div><div class="ob-opt-s">Du hast einen 5-stelligen Code? Hier rein damit.</div></div>${svg(I.chevR,'ob-opt-go')}</button>
+    </div>
+    <p class="note" style="text-align:center;margin-top:16px">Auch ohne Liga bist du von Anfang an in der <b>Welt-Rangliste</b> dabei. Eine Liga ist nur für den privaten Vergleich mit deinen Freunden.</p>`;
+}
 
 /* ---------- shell ---------- */
 function render(){
   ensureFixtures();
   const body=S.tab==='heute'?viewHeute():S.tab==='gruppen'?viewGruppen():S.tab==='stars'?viewStars():S.tab==='welt'?viewWelt():S.tab==='tor'?viewTor():S.tab==='ko'?viewKo():viewRangliste();
   app().innerHTML=`
-    <div class="hd"><div class="hd-row"><div class="brand">${MARK}<span class="wm">Golazo</span></div>
+    <div class="hd"><div class="hd-row"><div class="brand">${MARK}<span class="wm">Captain League</span></div>
       <div class="hd-right"><div class="hd-pts">${svg(I.bolt,'pts-ic')}<span class="v">${totalPoints()}</span></div><button class="gear" onclick="openSettings()" aria-label="Einstellungen">${svg(I.gear)}</button></div></div></div>
     <div class="view view-${S.tab}" id="view">${body}</div>
     <nav class="tabs">${tab('heute',I.house,'Heute')}${tab('gruppen',I.cal,'Gruppen')}${tab('ko',I.koTab,'K.o.')}${tab('stars',I.star,'Stars')}${tab('rangliste',I.trophy,'Liga')}${tab('welt',I.globe,'Welt')}${tab('tor',I.shirt,'Torjäger')}</nav>
@@ -1467,15 +1484,15 @@ function matchCard(f){
     ${done?`<div class="m-ft"><span class="m-fin">dein Tipp ${tipped?`${p.h}:${p.a}`:'—'}</span><span class="m-pt ${pts>=5?'p5':pts>0?'p2':'p0'}">${pts>=5?'+5 exakt':pts>0?'+2 Tendenz':'+0'}</span></div>`:''}
   </div>`;
 }
-function setPred(id,side,val){
+function setPred(id,side,val){ if(tipClosed(id))return;
   DB.preds[id]=DB.preds[id]||{};DB.preds[id][side]=val===''?null:Math.max(0,Math.min(20,parseInt(val)||0));persist();
   const f=DB.fixtures.find(x=>x.id===id);
   if(f){const games=DB.fixtures.filter(x=>x.md===f.md);const mdMade=games.filter(x=>{const q=DB.preds[x.id];return q&&q.h!=null&&q.a!=null;}).length;const hd=document.querySelector('#md-'+f.md+' .mday-prog');if(hd)hd.textContent=mdMade+'/'+games.length;}
   const pill=document.querySelector('.hd-pts .v');if(pill)pill.textContent=totalPoints();
 }
 function setDraft(id,side,val){ S.draft=S.draft||{}; S.draft[id]=S.draft[id]||{}; S.draft[id][side]= val===''?null:Math.max(0,Math.min(20,parseInt(val)||0)); const p=DB.preds[id]||{}; const d=S.draft[id]; const eh=d.h!=null?d.h:(p.h!=null?p.h:null), ea=d.a!=null?d.a:(p.a!=null?p.a:null); const sub=p.h!=null&&p.a!=null; const can=eh!=null&&ea!=null&&(!sub||eh!==p.h||ea!==p.a); const b=document.getElementById('submit-'+id); if(b){ b.disabled=!can; b.textContent=sub?'Tipp aktualisieren':'Tipp einreichen'; } }
-function submitTip(id){ const d=(S.draft&&S.draft[id])||{}; const p=DB.preds[id]||{}; const h=d.h!=null?d.h:p.h, a=d.a!=null?d.a:p.a; if(h==null||a==null)return toast('Bitte beide Tore eintragen'); DB.preds[id]={h,a}; if(S.draft)delete S.draft[id]; persist(); toast('Tipp eingereicht ✓'); render(); }
-function removeTip(id){ delete DB.preds[id]; if(S.draft)delete S.draft[id]; persist(); toast('Tipp entfernt'); render(); }
+function submitTip(id){ const d=(S.draft&&S.draft[id])||{}; const p=DB.preds[id]||{}; const h=d.h!=null?d.h:p.h, a=d.a!=null?d.a:p.a; if(h==null||a==null)return toast('Bitte beide Tore eintragen'); if(tipClosed(id))return toast('Tippen geschlossen — das Spiel hat schon angepfiffen'); DB.preds[id]={h,a}; if(S.draft)delete S.draft[id]; persist(); toast('Tipp eingereicht ✓'); render(); }
+function removeTip(id){ if(tipClosed(id))return toast('Das Spiel hat schon angepfiffen — Tipp bleibt fix.'); delete DB.preds[id]; if(S.draft)delete S.draft[id]; persist(); toast('Tipp entfernt'); render(); }
 
 /* ============================================================ K.O.-PHASE — Ansicht ============================================================ */
 function koCountdown(){
@@ -1602,8 +1619,8 @@ function renderStarPick(){
     <div class="sheet-bd" style="padding-top:8px">${block(f.home)}${block(f.away)}<div style="height:14px"></div>${cur?`<button class="btn btn-out btn-wide btn-sm" onclick="removeStar(${fid})">${svg(I.x)} Star entfernen</button>`:''}<div style="height:8px"></div></div>`);
 }
 function setSpPos(x){S.spPos=x;renderStarPick();}
-function setStar(fid,pid){DB.stars[fid]=pid;persist();closeSheet();render();const p=pl(pid);toast('Star: '+lastName(p.name));confetti(14,.42);}
-function removeStar(fid){delete DB.stars[fid];persist();closeSheet();render();}
+function setStar(fid,pid){if(tipClosed(fid))return toast('Anpfiff vorbei — Star gesperrt');DB.stars[fid]=pid;persist();closeSheet();render();const p=pl(pid);toast('Star: '+lastName(p.name));confetti(14,.42);}
+function removeStar(fid){if(tipClosed(fid))return toast('Anpfiff vorbei');delete DB.stars[fid];persist();closeSheet();render();}
 function viewStars(){
   const now=Date.now();
   const total=myStarPoints();
@@ -1803,6 +1820,7 @@ function clearSpecial(){ if(DB.special)delete DB.special[S.spField]; persist(); 
 
 /* ============================================================ RANGLISTE ============================================================ */
 function viewRangliste(){
+  if(!DB.league){return leagueGate();}
   const mine=totalPoints(), myTip=myTipPoints(), myStar=myStarPoints();
   const meName=DB.me?DB.me.name:'Du';
   let rows='', mcount=1, note='', myRank=1;
@@ -1824,7 +1842,7 @@ function viewRangliste(){
     rows=lbRow({n:meName,fav:(DB.me&&DB.me.fav)||'',pts:mine,tip:myTip,star:myStar,me:true},1);
     others.forEach(n=>{ rows+=lbRow({n,pts:null},null); });
     note=others.length
-      ?`<p class="note" style="text-align:center;margin-top:12px">Punkte anderer Mitglieder werden synchronisiert, sobald Golazo online läuft.</p>`
+      ?`<p class="note" style="text-align:center;margin-top:12px">Punkte anderer Mitglieder werden synchronisiert, sobald Captain League online läuft.</p>`
       :`<div class="invite-hint">${svg(I.share)}<div><b>Noch alleine hier.</b> Teile den Liga-Code mit Freunden.</div></div>`;
   }
 
@@ -1916,12 +1934,12 @@ function viewWelt(){
   } else {
     note=`<p class="note" style="text-align:center;margin-top:12px">Lade Welt-Rangliste…</p>`;
   }
-  const sub = myRank?`Dein Platz: ${myRank} von ${cnt}`:(cnt?`${cnt} Spieler weltweit`:'Alle Golazo-Spieler');
+  const sub = myRank?`Dein Platz: ${myRank} von ${cnt}`:(cnt?`${cnt} Spieler weltweit`:'Alle Captain-League-Spieler');
   let html=`<div class="view-title">Welt-Rangliste<div class="vt-sub">${sub}</div></div>`;
   html+=`<div class="lb-tbl"><div class="lb-th"><div class="lb-th-rank">#</div><div class="lb-th-name">Spieler</div><div class="lb-th-stat">Tipps</div><div class="lb-th-stat">Stars</div><div class="lb-th-pts">Pkt</div></div>${rows}</div>`;
   html+=note;
   html+=`<button class="lb-refresh" style="margin:8px auto 0;display:flex" onclick="reloadGb()">${svg(I.clock)} Aktualisieren</button>`;
-  html+=`<p class="note" style="text-align:center;margin-top:14px">Hier erscheint jeder, der ein Golazo-Konto hat — über alle Ligen hinweg.</p>`;
+  html+=`<p class="note" style="text-align:center;margin-top:14px">Hier erscheint jeder, der ein Captain-League-Konto hat — über alle Ligen hinweg.</p>`;
   return html;
 }
 
@@ -1950,7 +1968,7 @@ function openSettings(){
       <button class="set-link" onclick="openLegal()"><span>Rechtliche Hinweise &amp; Datenschutz</span>${svg(I.chevR)}</button>
       ${CLOUD?`<button class="set-link" onclick="doLogout()"><span>Abmelden</span>${svg(I.chevR)}</button>`:''}
       <button class="set-link danger" onclick="resetAll()"><span>${CLOUD?'App-Daten zurücksetzen':'Alle Daten zurücksetzen'}</span>${svg(I.chevR)}</button>
-      <p class="note" style="margin-top:16px;text-align:center">Golazo v1 · inoffizielles WM-Tippspiel</p>
+      <p class="note" style="margin-top:16px;text-align:center">Captain League · inoffizielles WM-Tippspiel</p>
     </div>`);
 }
 function saveProfile(){const n=($('#set-name').value||'').trim();const _c=nameAllowed(n);if(!_c.ok)return toast(_c.msg);DB.me.name=n;DB.me.fav=$('#set-fav').value||'';persist();closeSheet();render();toast('Profil gespeichert');}
@@ -1990,12 +2008,12 @@ function openLegal(){
   sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>Rechtliche Hinweise</h2><div class="ss">Bitte kurz lesen</div></div>
     <div class="sheet-bd legal">
       <h4>Anbieter</h4><p>[Hier deinen Namen / Kontakt eintragen] — privates, nicht-kommerzielles Projekt.</p>
-      <h4>Keine Verbindung zur FIFA</h4><p>Golazo ist ein inoffizielles, privates Tippspiel und steht in keiner Verbindung zur FIFA oder offiziellen Veranstaltern. „FIFA World Cup", Team-, Wettbewerbs- und Spielernamen sowie alle Marken gehören ihren jeweiligen Inhabern. Spielplan-, Team- und Spielerdaten dienen ausschließlich Informations- und Unterhaltungszwecken.</p>
-      <h4>Kein Glücksspiel</h4><p>Golazo ist kostenlos und dient der Unterhaltung. Es gibt keinen Geldeinsatz, keine Wetten und keine Geldgewinne. Es handelt sich ausdrücklich nicht um Glücksspiel.</p>
+      <h4>Keine Verbindung zur FIFA</h4><p>Captain League ist ein inoffizielles, privates Tippspiel und steht in keiner Verbindung zur FIFA oder offiziellen Veranstaltern. „FIFA World Cup", Team-, Wettbewerbs- und Spielernamen sowie alle Marken gehören ihren jeweiligen Inhabern. Spielplan-, Team- und Spielerdaten dienen ausschließlich Informations- und Unterhaltungszwecken.</p>
+      <h4>Kein Glücksspiel</h4><p>Captain League ist kostenlos und dient der Unterhaltung. Es gibt keinen Geldeinsatz, keine Wetten und keine Geldgewinne. Es handelt sich ausdrücklich nicht um Glücksspiel.</p>
       <h4>Datenschutz</h4><p>Deine Eingaben (Name, Lieblingsteam, Tipps, Star-Auswahl, Liga-Code) werden lokal auf deinem Gerät gespeichert. Im Online-Modus werden Profil und Liga zusätzlich sicher in der Datenbank gespeichert, damit deine Liga geräteübergreifend funktioniert. Es werden keine Daten an Werbe-Dritte verkauft. Für die Flaggen-Grafiken wird der Dienst flagcdn.com geladen.</p>
       <h4>Keine Gewähr</h4><p>Alle Angaben (Spielplan, Anstosszeiten, Spieler- und Marktwerte) erfolgen ohne Gewähr auf Richtigkeit, Vollständigkeit oder Aktualität. Anstosszeiten werden in deiner lokalen Gerätezeit angezeigt und können von offiziellen Angaben abweichen.</p>
       <h4>Nutzung</h4><p>Die Nutzung erfolgt auf eigene Verantwortung. Empfohlen ab 16 Jahren.</p>
-      <p class="legal-date">Stand: Juni 2026 · Golazo v1</p>
+      <p class="legal-date">Stand: Juni 2026 · Captain League</p>
       <button class="btn btn-soft btn-wide" style="margin-top:6px" onclick="closeSheet()">Schließen</button>
     </div>`);
 }
@@ -2273,7 +2291,7 @@ async function koClearScore(){
 function renderBanned(){
   app().innerHTML=`<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 26px;text-align:center">
     <div><div style="font-family:var(--fd);font-weight:900;font-size:27px;color:var(--ink)">Account gesperrt</div>
-    <p style="color:var(--ink-2);margin-top:12px;line-height:1.55;max-width:300px">Dein Zugang zu Golazo wurde gesperrt. Wende dich an den Betreiber deiner Liga, wenn du denkst, das sei ein Fehler.</p></div></div>`;
+    <p style="color:var(--ink-2);margin-top:12px;line-height:1.55;max-width:300px">Dein Zugang zu Captain League wurde gesperrt. Wende dich an den Betreiber deiner Liga, wenn du denkst, das sei ein Fehler.</p></div></div>`;
 }
 async function adminFetchUsers(){
   if(!CLOUD||!sb){ S.admUsers=[]; S.admUsersErr='Nur im Online-Modus.'; return; }
@@ -2326,7 +2344,7 @@ function openAdminUser(uid){
 }
 function adminToggleBan(uid,ban){
   confirmSheet(ban?'Account sperren?':'Account entsperren?',
-    ban?'Der Nutzer wird gesperrt, aus allen Ligen entfernt und kann nichts mehr speichern.':'Der Nutzer kann Golazo wieder nutzen (muss Ligen neu beitreten).',
+    ban?'Der Nutzer wird gesperrt, aus allen Ligen entfernt und kann nichts mehr speichern.':'Der Nutzer kann Captain League wieder nutzen (muss Ligen neu beitreten).',
     ban?'Sperren':'Entsperren', async()=>{
       if(CLOUD&&sb){ try{ const {error}=await sb.rpc('admin_set_ban',{p_uid:uid,p_banned:ban}); if(error){toast('Fehler: '+(error.message||error.code||'?'));return;} }catch(e){toast('Fehler beim Sperren');return;} }
       toast(ban?'Account gesperrt':'Account entsperrt'); await adminFetchUsers(); openAdminUsers();
