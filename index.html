@@ -64,7 +64,7 @@
   .note{font-size:12.5px;color:var(--ink-3);line-height:1.55;margin-top:8px}
 
   /* ---------- buttons ---------- */
-  .btn{flex:1;border-radius:var(--r);padding:13px 16px;font-weight:600;font-size:15px;letter-spacing:-.01em;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s,background .15s,opacity .15s;border:1.5px solid transparent;line-height:1}
+  .btn{border-radius:var(--r);padding:13px 16px;font-weight:600;font-size:15px;letter-spacing:-.01em;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s,background .15s,opacity .15s;border:1.5px solid transparent;line-height:1}
   .btn:active{transform:scale(.985)}
   .btn svg{width:17px;height:17px;fill:none;stroke-width:2.1}
   .btn-pri{background:var(--accent);color:#fff}.btn-pri:active{background:var(--accent-press)}.btn-pri svg{stroke:#fff}
@@ -72,7 +72,7 @@
   .btn-soft{background:var(--field);color:var(--ink)}.btn-soft svg{stroke:var(--ink)}
   .btn-out{background:var(--card);border-color:var(--line);color:var(--ink)}.btn-out svg{stroke:var(--ink)}
   .btn-sm{padding:11px 15px;font-size:13.5px;flex:0 0 auto;border-radius:var(--r-sm)}
-  .btn-wide{width:100%}
+  .btn-wide{width:100%;flex:0 0 auto}
   .btn[disabled]{opacity:.4;pointer-events:none}
 
   /* ---------- dark hero card (points / standings) ---------- */
@@ -155,7 +155,7 @@
   .ms-chev svg{width:15px;height:15px;stroke:var(--ink-3);fill:none;stroke-width:2}
   .m-star.locked{opacity:.92}
 
-  /* ---------- Stars tab ---------- */
+  /* ---------- Captains tab ---------- */
   .trio-explain{background:var(--card);border:1px solid var(--line);color:var(--ink-2);border-radius:var(--r);padding:14px 15px;font-size:13px;line-height:1.55;margin-bottom:12px}
   .trio-explain b{font-weight:700;color:var(--ink)}
   .sp-md{font-family:var(--fd);font-size:15px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);margin:20px 2px 11px}
@@ -438,7 +438,7 @@
   .grp-h>span:first-child,.sheet h2,.ob-step h2,.empty h3{ letter-spacing:-.01em; }
   .lbl{ letter-spacing:0; font-weight:700; color:var(--ink); font-size:14px; }
 
-  /* ---------- gradient page header (Heute / Gruppen / Stars) ---------- */
+  /* ---------- gradient page header (Heute / Gruppen / Captains) ---------- */
   .view-title{
     position:static; margin:6px 2px 20px; padding:0;
     color:var(--ink); background:none; border-radius:0;
@@ -729,6 +729,7 @@
   .ob-opt-go{ width:18px; height:18px; stroke:var(--ink-3); fill:none; stroke-width:2; flex-shrink:0; }
   .ob-feats{ display:flex; align-items:center; justify-content:center; gap:8px; margin-top:24px; font-size:12px; color:var(--ink-3); font-weight:600; }
   .ob-go{ margin-top:24px; }
+  .ob-step .btn,.ob .btn{ flex:0 0 auto; }
   .ob-done-ic{ width:54px; height:54px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; margin-bottom:18px; }
   .ob-done-ic svg{ width:28px; height:28px; stroke:#fff; fill:none; stroke-width:2.6; }
   .code-in{ text-transform:uppercase; font-family:var(--fd); font-weight:700; letter-spacing:.14em; font-size:20px; text-align:center; }
@@ -850,11 +851,11 @@ function openMember(id){
     starRows+=`<div class="mb-star">${fi(pp.team)}<div class="nm">${esc(pp.name)} <span style="color:var(--ink-3);font-weight:600">· ${esc(T(f.home).n)}–${esc(T(f.away).n)}</span></div>${sp!=null?`<span class="pt">+${sp}</span>`:`<span class="mb-live">offen</span>`}</div>`; });
   sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>${esc(m.n)}</h2><div class="ss">${m.me?'Das bist du':'Mitglied deiner Liga'}</div></div>
     <div class="sheet-bd">
-      <div class="mb-tot"><div class="t"><div class="n acc">${m.pts}</div><div class="l">Total</div></div><div class="t"><div class="n">${m.tip}</div><div class="l">Tipps</div></div><div class="t"><div class="n">${m.star}</div><div class="l">Stars</div></div></div>
+      <div class="mb-tot"><div class="t"><div class="n acc">${m.pts}</div><div class="l">Total</div></div><div class="t"><div class="n">${m.tip}</div><div class="l">Tipps</div></div><div class="t"><div class="n">${m.star}</div><div class="l">Captains</div></div></div>
       <div class="mb-sec">Tipps</div>
       ${shown?tipRows:`<div class="mb-note">${svg(I.clock)} Noch keine Tipps für angepfiffene Spiele.</div>`}
       ${hidden?`<div class="mb-note">${svg(I.clock)} ${hidden} ${hidden===1?'Tipp ist':'Tipps sind'} für kommende Spiele bis zum Anpfiff verborgen — fair bleibt fair.</div>`:''}
-      ${starRows?`<div class="mb-sec">Stars</div>${starRows}`:''}
+      ${starRows?`<div class="mb-sec">Captains</div>${starRows}`:''}
       <button class="btn btn-soft btn-wide btn-sm" style="margin-top:14px" onclick="closeSheet()">Schließen</button>
     </div>`);
 }
@@ -1014,11 +1015,11 @@ const OFFICIAL = {
 };
 
 /* ============================================================
-   STAR-LEISTUNGEN — ebenfalls von dir (dem Betreiber) gepflegt.
+   CAPTAIN-LEISTUNGEN — ebenfalls von dir (dem Betreiber) gepflegt.
    ------------------------------------------------------------
    Hier trägst du nach jedem Spiel ein, was die Spieler geleistet
-   haben, die als Star wählbar sind. Die Spieler in der App können
-   ihren Star nur AUSWÄHLEN — Punkte bekommen sie automatisch aus
+   haben, die als Captain wählbar sind. Die Spieler in der App können
+   ihren Captain nur AUSWÄHLEN — Punkte bekommen sie automatisch aus
    diesen Daten. Niemand trägt seine eigene Leistung ein.
 
    Aufbau:  'HEIM-AUSWAERTS': { 'Spielername': { m, g, a }, ... }
@@ -1026,7 +1027,7 @@ const OFFICIAL = {
      g = erzielte Tore
      a = Assists
    Der Spielername muss exakt dem Namen in der App entsprechen
-   (so wie er im Star-Picker steht). Zu-Null wird automatisch aus
+   (so wie er im Captain-Picker steht). Zu-Null wird automatisch aus
    dem Ergebnis (OFFICIAL) + Position berechnet, das musst du NICHT
    eintragen.
 
@@ -1269,7 +1270,7 @@ function renderOnboard(mode){
       </div>
       <div class="ob-body">
         <h1>Willkommen</h1>
-        <p>Tippe jeden Tag die Spiele, wähle bei jedem Match deinen Star — und kämpf mit deinen Freunden um Platz 1.</p>
+        <p>Tippe jeden Tag die Spiele, wähle bei jedem Match deinen Captain — und kämpf mit deinen Freunden um Platz 1.</p>
         <div class="ob-opts">
           <button class="ob-opt" onclick="renderOnboard('create')">
             <div class="ob-opt-ic">${svg(I.plus)}</div>
@@ -1386,7 +1387,7 @@ function render(){
     <div class="hd"><div class="hd-row"><div class="brand">${MARK}<span class="wm">Captain League</span></div>
       <div class="hd-right"><div class="hd-pts">${svg(I.bolt,'pts-ic')}<span class="v">${totalPoints()}</span></div><button class="gear" onclick="openSettings()" aria-label="Einstellungen">${svg(I.gear)}</button></div></div></div>
     <div class="view view-${S.tab}" id="view">${body}</div>
-    <nav class="tabs">${tab('heute',I.house,'Heute')}${tab('gruppen',I.cal,'Gruppen')}${tab('ko',I.koTab,'K.o.')}${tab('stars',I.star,'Stars')}${tab('rangliste',I.trophy,'Liga')}${tab('welt',I.globe,'Welt')}${tab('tor',I.shirt,'Torjäger')}</nav>
+    <nav class="tabs">${tab('heute',I.house,'Heute')}${tab('gruppen',I.cal,'Gruppen')}${tab('ko',I.koTab,'K.o.')}${tab('stars',I.star,'Captains')}${tab('rangliste',I.trophy,'Liga')}${tab('welt',I.globe,'Welt')}${tab('tor',I.shirt,'Torjäger')}</nav>
     <div class="scrim" id="scrim" onclick="closeSheet()"></div><div class="sheet" id="sheet"></div>`;
 }
 const tab=(id,ic,l)=>`<button class="tab ${S.tab===id?'on':''}" onclick="go('${id}')">${svg(ic)}<span>${l}</span></button>`;
@@ -1447,11 +1448,11 @@ function starControl(f){
   const locked=Date.now()>=new Date(f.ko).getTime();
   let body;
   if(p){
-    body=`<span class="ms-fl">${fi(p.team)}</span><span class="ms-n">${esc(lastName(p.name))}</span><span class="ms-pos">${POSSHORT[p.pos]}</span>`+(b!=null?`<span class="ms-pts">+${b.total}</span>`:`<span class="ms-tag">Star</span>`);
+    body=`<span class="ms-fl">${fi(p.team)}</span><span class="ms-n">${esc(lastName(p.name))}</span><span class="ms-pos">${POSSHORT[p.pos]}</span>`+(b!=null?`<span class="ms-pts">+${b.total}</span>`:`<span class="ms-tag">Captain</span>`);
   } else if(locked){
-    body=`<span class="ms-ic">${svg(I.star)}</span><span class="ms-add" style="color:var(--ink-3)">kein Star gewählt</span>`;
+    body=`<span class="ms-ic">${svg(I.star)}</span><span class="ms-add" style="color:var(--ink-3)">kein Captain gewählt</span>`;
   } else {
-    body=`<span class="ms-ic">${svg(I.star)}</span><span class="ms-add">Star-Spieler wählen</span>`;
+    body=`<span class="ms-ic">${svg(I.star)}</span><span class="ms-add">Captain wählen</span>`;
   }
   if(locked) return `<div class="m-star ${p?'set':''} locked">${body}</div>`;
   return `<button class="m-star ${p?'set':''}" onclick="openStarPick(${f.id})">${body}<span class="ms-chev">${svg(I.chevR)}</span></button>`;
@@ -1599,7 +1600,7 @@ function groupMatchRow(f){
 }
 /* Ergebnisse werden zentral über OFFICIAL gepflegt – keine Eingabe in der App. */
 
-function openStarPick(fid){const f=DB.fixtures.find(x=>x.id===fid);if(f&&Date.now()>=new Date(f.ko).getTime())return toast('Anpfiff vorbei — Star gesperrt');S.spFid=fid;S.spPos='all';renderStarPick();}
+function openStarPick(fid){const f=DB.fixtures.find(x=>x.id===fid);if(f&&Date.now()>=new Date(f.ko).getTime())return toast('Anpfiff vorbei — Captain gesperrt');S.spFid=fid;S.spPos='all';renderStarPick();}
 function renderStarPick(){
   const fid=S.spFid, f=DB.fixtures.find(x=>x.id===fid); if(!f)return;
   const cur=DB.stars[fid];
@@ -1614,12 +1615,12 @@ function renderStarPick(){
     return `<div class="sel-sub">${fi(code)} ${esc(T(code).n)}</div>`+rows;
   }
   sheetRaw(`<div class="sheet-hd"><div class="grip"></div>
-      <h2 style="margin:0">Star-Spieler wählen</h2><div class="ss">${esc(T(f.home).n)} vs ${esc(T(f.away).n)} · wähle einen Spieler</div>
+      <h2 style="margin:0">Captain wählen</h2><div class="ss">${esc(T(f.home).n)} vs ${esc(T(f.away).n)} · wähle einen Spieler</div>
       <div class="seg-pos">${['all','GK','DEF','MID','FWD'].map(x=>`<button class="${S.spPos===x?'on':''}" onclick="setSpPos('${x}')">${x==='all'?'Alle':POSSHORT[x]}</button>`).join('')}</div></div>
-    <div class="sheet-bd" style="padding-top:8px">${block(f.home)}${block(f.away)}<div style="height:14px"></div>${cur?`<button class="btn btn-out btn-wide btn-sm" onclick="removeStar(${fid})">${svg(I.x)} Star entfernen</button>`:''}<div style="height:8px"></div></div>`);
+    <div class="sheet-bd" style="padding-top:8px">${block(f.home)}${block(f.away)}<div style="height:14px"></div>${cur?`<button class="btn btn-out btn-wide btn-sm" onclick="removeStar(${fid})">${svg(I.x)} Captain entfernen</button>`:''}<div style="height:8px"></div></div>`);
 }
 function setSpPos(x){S.spPos=x;renderStarPick();}
-function setStar(fid,pid){if(tipClosed(fid))return toast('Anpfiff vorbei — Star gesperrt');DB.stars[fid]=pid;persist();closeSheet();render();const p=pl(pid);toast('Star: '+lastName(p.name));confetti(14,.42);}
+function setStar(fid,pid){if(tipClosed(fid))return toast('Anpfiff vorbei — Captain gesperrt');DB.stars[fid]=pid;persist();closeSheet();render();const p=pl(pid);toast('Captain: '+lastName(p.name));confetti(14,.42);}
 function removeStar(fid){if(tipClosed(fid))return toast('Anpfiff vorbei');delete DB.stars[fid];persist();closeSheet();render();}
 function viewStars(){
   const now=Date.now();
@@ -1641,13 +1642,13 @@ function viewStars(){
   }
 
   /* header with help icon */
-  let html=`<div class="view-title">Stars<button class="vt-help" onclick="openHowItWorks()">?</button></div>`;
+  let html=`<div class="view-title">Captains<button class="vt-help" onclick="openHowItWorks()">?</button></div>`;
 
   /* hero */
   const pct=totalFix?Math.round(picked.length/totalFix*100):0;
   html+=`<div class="star-hero">
     <div class="sh-top">
-      <div><div class="sh-pts">${total}</div><div class="sh-label">Star-Punkte${rankStr}</div></div>
+      <div><div class="sh-pts">${total}</div><div class="sh-label">Captain-Punkte${rankStr}</div></div>
       <div class="sh-badge">${picked.length}<span>/${totalFix}</span></div>
     </div>
     <div class="sh-prog-bar"><div class="sh-prog-fill" style="width:${pct}%"></div></div>
@@ -1668,7 +1669,7 @@ function viewStars(){
 
   /* ── DEINE STARS ── */
   if(picked.length){
-    html+=`<div class="stars-sec">Deine Stars</div>`;
+    html+=`<div class="stars-sec">Deine Captains</div>`;
     picked.forEach(f=>{
       const p=pl(DB.stars[f.id]), b=starBreakdown(f.id), R=DB.results[f.id], hasR=R&&R.h!=null;
       const kicked=now>=new Date(f.ko).getTime();
@@ -1691,7 +1692,7 @@ function viewStars(){
 
   /* empty state */
   if(!open.length&&!picked.length){
-    html+=`<div class="empty"><div class="empty-ic">${svg(I.star)}</div><h3>Noch keine Stars</h3><p>Wähle bei jedem Spiel einen Spieler — je besser er spielt, desto mehr Punkte gibt's.</p><button class="btn btn-pri btn-wide" style="margin-top:16px" onclick="go('heute')">${svg(I.bolt)} Zu den Spielen</button></div>`;
+    html+=`<div class="empty"><div class="empty-ic">${svg(I.star)}</div><h3>Noch keine Captains</h3><p>Wähle bei jedem Spiel einen Spieler — je besser er spielt, desto mehr Punkte gibt's.</p><button class="btn btn-pri btn-wide" style="margin-top:16px" onclick="go('heute')">${svg(I.bolt)} Zu den Spielen</button></div>`;
   }
 
   return html;
@@ -1713,16 +1714,16 @@ function openStarEval(fid){
     if(perf.r)rows+=`<div class="evd"><span>Rote Karte <em>· −3</em></span><b>−3</b></div>`;
   }
   let status;
-  if(b)status=`<div class="ev-total"><span>Punkte für diesen Star</span><b>${b.total}</b></div>`;
+  if(b)status=`<div class="ev-total"><span>Punkte für diesen Captain</span><b>${b.total}</b></div>`;
   else if(!kicked)status=`<div class="adm-note">${svg(I.clock)} Das Spiel hat noch nicht begonnen. Sobald es gespielt und ausgewertet ist, erscheinen hier automatisch deine Punkte.</div>`;
   else if(!hasR)status=`<div class="adm-note">${svg(I.clock)} Das Spiel läuft oder wird gerade ausgewertet — die Punkte erscheinen in Kürze.</div>`;
   else status=`<div class="adm-note">${svg(I.clock)} Ergebnis steht, die Leistungsdaten werden noch nachgetragen. Deine Punkte erscheinen automatisch.</div>`;
-  sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>Dein Star</h2><div class="ss">${fi(p.team)} ${esc(p.name)} · ${POSLBL[p.pos]}</div></div>
+  sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>Dein Captain</h2><div class="ss">${fi(p.team)} ${esc(p.name)} · ${POSLBL[p.pos]}</div></div>
     <div class="sheet-bd">
       <div class="ev-match">${fi(f.home)} ${esc(T(f.home).n)} ${hasR?`<b>${r.h}:${r.a}</b>`:`<span class="ev-vs">vs</span>`} ${esc(T(f.away).n)} ${fi(f.away)}</div>
       ${b?`<div class="ev-lbl">Auswertung · ${mins}</div>${rows}`:''}
       ${status}
-      ${!kicked?`<button class="btn btn-out btn-wide" style="margin-top:14px" onclick="openStarPick(${fid})">${svg(I.star)} Star noch ändern</button>`:''}
+      ${!kicked?`<button class="btn btn-out btn-wide" style="margin-top:14px" onclick="openStarPick(${fid})">${svg(I.star)} Captain noch ändern</button>`:''}
       <button class="btn btn-soft btn-wide btn-sm" style="margin-top:9px" onclick="closeSheet()">Schließen</button>
     </div>`);
 }
@@ -1856,7 +1857,7 @@ function viewRangliste(){
       <div class="lb-th-rank">#</div>
       <div class="lb-th-name">Spieler</div>
       <div class="lb-th-stat">Tipps</div>
-      <div class="lb-th-stat">Stars</div>
+      <div class="lb-th-stat">Captains</div>
       <div class="lb-th-pts">Pkt</div>
     </div>
     ${rows}
@@ -1870,7 +1871,7 @@ function viewRangliste(){
     <div class="my-stat-sep"></div>
     <div class="my-stat"><div class="my-stat-n">${myTip}</div><div class="my-stat-l">Tipp-Pkt</div></div>
     <div class="my-stat-sep"></div>
-    <div class="my-stat"><div class="my-stat-n">${myStar}</div><div class="my-stat-l">Star-Pkt</div></div>
+    <div class="my-stat"><div class="my-stat-n">${myStar}</div><div class="my-stat-l">Captain-Pkt</div></div>
     <div class="my-stat-sep"></div>
     <div class="my-stat"><div class="my-stat-n">${mcount}</div><div class="my-stat-l">Mitglieder</div></div>
   </div>`;
@@ -1936,7 +1937,7 @@ function viewWelt(){
   }
   const sub = myRank?`Dein Platz: ${myRank} von ${cnt}`:(cnt?`${cnt} Spieler weltweit`:'Alle Captain-League-Spieler');
   let html=`<div class="view-title">Welt-Rangliste<div class="vt-sub">${sub}</div></div>`;
-  html+=`<div class="lb-tbl"><div class="lb-th"><div class="lb-th-rank">#</div><div class="lb-th-name">Spieler</div><div class="lb-th-stat">Tipps</div><div class="lb-th-stat">Stars</div><div class="lb-th-pts">Pkt</div></div>${rows}</div>`;
+  html+=`<div class="lb-tbl"><div class="lb-th"><div class="lb-th-rank">#</div><div class="lb-th-name">Spieler</div><div class="lb-th-stat">Tipps</div><div class="lb-th-stat">Captains</div><div class="lb-th-pts">Pkt</div></div>${rows}</div>`;
   html+=note;
   html+=`<button class="lb-refresh" style="margin:8px auto 0;display:flex" onclick="reloadGb()">${svg(I.clock)} Aktualisieren</button>`;
   html+=`<p class="note" style="text-align:center;margin-top:14px">Hier erscheint jeder, der ein Captain-League-Konto hat — über alle Ligen hinweg.</p>`;
@@ -1992,15 +1993,15 @@ function doReset(){DB={me:null,fixtures:[],preds:{},results:{},trio:{},stars:{},
 function confirmSheet(title,msg,ok,fn){window.__ok=fn;sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>${esc(title)}</h2><div class="ss">${esc(msg)}</div></div>
   <div class="sheet-bd"><button class="btn btn-pri btn-wide" style="background:var(--bad)" onclick="(window.__ok||function(){})()">${esc(ok)}</button><button class="btn btn-soft btn-wide" style="margin-top:9px" onclick="closeSheet()">Abbrechen</button></div>`);}
 function openHowItWorks(){
-  sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>So funktionieren die Punkte</h2><div class="ss">Tippen + Star-Spieler</div></div>
+  sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>So funktionieren die Punkte</h2><div class="ss">Tippen + Captains</div></div>
     <div class="sheet-bd legal">
       <h4>1 · Spiele tippen</h4>
       <p>Für jedes Spiel tippst du das Ergebnis. Punkte gibt's so:</p>
       <div class="hiw"><div class="hiw-row"><b>+5</b><span>Exaktes Ergebnis (z.B. 2:1 getippt und 2:1 gespielt)</span></div><div class="hiw-row"><b>+2</b><span>Richtige Tendenz (Sieger bzw. Unentschieden stimmt)</span></div><div class="hiw-row"><b>0</b><span>Falsch getippt</span></div></div>
-      <h4>2 · Star-Spieler pro Spiel</h4>
-      <p>Bei jedem Spiel wählst du einen Star aus den beiden Teams. Du wählst nur aus — die Punkte werden anhand der echten Leistung automatisch vergeben:</p>
+      <h4>2 · Captain pro Spiel</h4>
+      <p>Bei jedem Spiel wählst du einen Captain aus den beiden Teams. Du wählst nur aus — die Punkte werden anhand der echten Leistung automatisch vergeben:</p>
       <div class="hiw"><div class="hiw-row"><b>+1</b><span>Eingesetzt (unter 60 Minuten)</span></div><div class="hiw-row"><b>+2</b><span>60 Minuten oder mehr gespielt</span></div><div class="hiw-row"><b>+6</b><span>Tor von Torhüter oder Abwehrspieler</span></div><div class="hiw-row"><b>+5</b><span>Tor von Mittelfeldspieler</span></div><div class="hiw-row"><b>+4</b><span>Tor von Stürmer</span></div><div class="hiw-row"><b>+3</b><span>Assist (Torvorlage)</span></div><div class="hiw-row"><b>+4</b><span>Zu Null als Torhüter/Abwehr (ab 60 Min, Team kassiert kein Tor)</span></div><div class="hiw-row"><b>+1</b><span>Zu Null als Mittelfeldspieler</span></div></div>
-      <p style="margin-top:10px"><b>Gesamtpunkte = Tipp-Punkte + Star-Punkte.</b> Die echten Ergebnisse werden zentral aktuell gehalten — danach berechnen sich alle Punkte automatisch.</p>
+      <p style="margin-top:10px"><b>Gesamtpunkte = Tipp-Punkte + Captain-Punkte.</b> Die echten Ergebnisse werden zentral aktuell gehalten — danach berechnen sich alle Punkte automatisch.</p>
       <button class="btn btn-soft btn-wide" style="margin-top:8px" onclick="closeSheet()">Verstanden</button>
     </div>`);
 }
@@ -2010,14 +2011,14 @@ function openLegal(){
       <h4>Anbieter</h4><p>[Hier deinen Namen / Kontakt eintragen] — privates, nicht-kommerzielles Projekt.</p>
       <h4>Keine Verbindung zur FIFA</h4><p>Captain League ist ein inoffizielles, privates Tippspiel und steht in keiner Verbindung zur FIFA oder offiziellen Veranstaltern. „FIFA World Cup", Team-, Wettbewerbs- und Spielernamen sowie alle Marken gehören ihren jeweiligen Inhabern. Spielplan-, Team- und Spielerdaten dienen ausschließlich Informations- und Unterhaltungszwecken.</p>
       <h4>Kein Glücksspiel</h4><p>Captain League ist kostenlos und dient der Unterhaltung. Es gibt keinen Geldeinsatz, keine Wetten und keine Geldgewinne. Es handelt sich ausdrücklich nicht um Glücksspiel.</p>
-      <h4>Datenschutz</h4><p>Deine Eingaben (Name, Lieblingsteam, Tipps, Star-Auswahl, Liga-Code) werden lokal auf deinem Gerät gespeichert. Im Online-Modus werden Profil und Liga zusätzlich sicher in der Datenbank gespeichert, damit deine Liga geräteübergreifend funktioniert. Es werden keine Daten an Werbe-Dritte verkauft. Für die Flaggen-Grafiken wird der Dienst flagcdn.com geladen.</p>
+      <h4>Datenschutz</h4><p>Deine Eingaben (Name, Lieblingsteam, Tipps, Captain-Auswahl, Liga-Code) werden lokal auf deinem Gerät gespeichert. Im Online-Modus werden Profil und Liga zusätzlich sicher in der Datenbank gespeichert, damit deine Liga geräteübergreifend funktioniert. Es werden keine Daten an Werbe-Dritte verkauft. Für die Flaggen-Grafiken wird der Dienst flagcdn.com geladen.</p>
       <h4>Keine Gewähr</h4><p>Alle Angaben (Spielplan, Anstosszeiten, Spieler- und Marktwerte) erfolgen ohne Gewähr auf Richtigkeit, Vollständigkeit oder Aktualität. Anstosszeiten werden in deiner lokalen Gerätezeit angezeigt und können von offiziellen Angaben abweichen.</p>
       <h4>Nutzung</h4><p>Die Nutzung erfolgt auf eigene Verantwortung. Empfohlen ab 16 Jahren.</p>
       <p class="legal-date">Stand: Juni 2026 · Captain League</p>
       <button class="btn btn-soft btn-wide" style="margin-top:6px" onclick="closeSheet()">Schließen</button>
     </div>`);
 }
-/* ============================================================ ADMIN — Ergebnisse & Star-Leistungen (nur Betreiber) ============================================================ */
+/* ============================================================ ADMIN — Ergebnisse & Captain-Leistungen (nur Betreiber) ============================================================ */
 function openAdminGate(){ if(!DB.isAdmin)return toast('Kein Admin-Zugang — nur für den Betreiber.'); openAdmin(); }
 let _admT=null;
 function admDeb(fn){clearTimeout(_admT);_admT=setTimeout(fn,450);}
@@ -2055,7 +2056,7 @@ function renderAdminList(){
       <button class="btn btn-soft btn-wide btn-sm" style="margin-top:10px" onclick="closeSheet()">Schließen</button>
     </div>`);
 }
-/* ---- ein Spiel: Ergebnis + Star-Leistungen ---- */
+/* ---- ein Spiel: Ergebnis + Captain-Leistungen ---- */
 function openAdminMatch(fid){
   S.admMatchFid=fid; S.admPos='all';
   const r=DB.results[fid]; S.admScore=r?{h:r.h,a:r.a}:{h:0,a:0};
@@ -2113,11 +2114,11 @@ function renderAdminMatch(){
         <button class="btn btn-out${hasRes?'':' off'}" onclick="adminClearResult()">${svg(I.x)} Austragen</button>
       </div>
 
-      <div class="adm-h" style="margin-top:22px">Star-Leistungen</div>
+      <div class="adm-h" style="margin-top:22px">Captain-Leistungen</div>
       <div class="seg-pos" style="margin-bottom:10px">${['all','GK','DEF','MID','FWD'].map(x=>`<button class="${S.admPos===x?'on':''}" onclick="setAdmPos('${x}')">${x==='all'?'Alle':POSSHORT[x]}</button>`).join('')}</div>
       ${pblock(f.home)}${pblock(f.away)}
 
-      <button class="btn btn-out btn-wide btn-sm" style="margin-top:18px" onclick="confirmSheet('Spiel zurücksetzen?','Ergebnis und alle Star-Leistungen dieses Spiels werden gelöscht.','Zurücksetzen',adminClearMatch)">${svg(I.x)} Ganzes Spiel zurücksetzen</button>
+      <button class="btn btn-out btn-wide btn-sm" style="margin-top:18px" onclick="confirmSheet('Spiel zurücksetzen?','Ergebnis und alle Captain-Leistungen dieses Spiels werden gelöscht.','Zurücksetzen',adminClearMatch)">${svg(I.x)} Ganzes Spiel zurücksetzen</button>
       <button class="btn btn-soft btn-wide btn-sm" style="margin-top:9px" onclick="renderAdminList()">${svg(I.chevL)} Zurück zur Liste</button>
     </div>`);
 }
