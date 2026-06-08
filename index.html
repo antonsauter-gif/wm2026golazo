@@ -1410,7 +1410,7 @@ function enterApp(){ S.tab='heute'; render(); }
 function enterMain(){ S.tab='heute'; render(); persist(); if(PENDING_CODE&&!DB.league){ try{toast('Liga-Einladung erkannt — tritt unter „Liga" bei.');}catch(e){} } maybeSharePrompt(); }
 function obCancel(){ if(DB.me&&DB.me.name){ S.tab='rangliste'; render(); } else { renderOnboard('welcome'); } }
 function koOf(id){ const f=DB.fixtures.find(x=>x.id===id); if(f)return f.ko; const k=(typeof KO_BY_ID!=='undefined')?KO_BY_ID[id]:null; return k?k.ko:null; }
-function tipClosed(id){ const ko=koOf(id); return ko ? (Date.now()>=new Date(ko).getTime()) : false; }
+function tipClosed(id){ const ko=koOf(id); const t=ko?(Date.now()>=new Date(ko).getTime()):false; return t || !!(DB.results&&DB.results[id]!=null); }
 function _addLeague(lg){ DB.leagues=DB.leagues||[]; const i=DB.leagues.findIndex(l=>l.code===lg.code); if(i>=0)DB.leagues[i]=lg; else DB.leagues.push(lg); DB.league=lg; }
 function switchLeague(code){ const lg=(DB.leagues||[]).find(l=>l.code===code); if(!lg)return; DB.league=lg; S.lbData=null; persist(); render(); if(CLOUD){ fetchLeaderboard().then(()=>render()); } }
 function addLeaguePrompt(){ if((DB.leagues||[]).length>=3)return toast('Maximal 3 Ligen gleichzeitig.'); sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>Liga hinzufügen</h2><div class="ss">Du kannst in bis zu 3 Ligen mitspielen</div></div>
@@ -1499,7 +1499,7 @@ function viewHeute(){
 function setDay(d){if(d){S.day=d;render();}}
 function starControl(f){
   const pid=DB.stars[f.id], p=pid?pl(pid):null, b=starBreakdown(f.id);
-  const locked=Date.now()>=new Date(f.ko).getTime();
+  const locked=tipClosed(f.id);
   let body;
   if(p){
     body=`<span class="ms-fl">${fi(p.team)}</span><span class="ms-n">${esc(lastName(p.name))}</span><span class="ms-pos">${POSSHORT[p.pos]}</span>`+(b!=null?`<span class="ms-pts">+${b.total}</span>`:`<span class="ms-tag">Captain</span>`);
@@ -1682,7 +1682,7 @@ function viewStars(){
   const totalFix=DB.fixtures.length;
 
   /* open = no pick yet AND not kicked off */
-  const open=DB.fixtures.filter(f=>now<new Date(f.ko).getTime()&&!DB.stars[f.id])
+  const open=DB.fixtures.filter(f=>!tipClosed(f.id)&&!DB.stars[f.id])
     .sort((a,b)=>new Date(a.ko)-new Date(b.ko));
   /* picked = any fixture with a star chosen */
   const picked=DB.fixtures.filter(f=>DB.stars[f.id])
@@ -1726,7 +1726,7 @@ function viewStars(){
     html+=`<div class="stars-sec">Deine Captains</div>`;
     picked.forEach(f=>{
       const p=pl(DB.stars[f.id]), b=starBreakdown(f.id), R=DB.results[f.id], hasR=R&&R.h!=null;
-      const kicked=now>=new Date(f.ko).getTime();
+      const kicked=tipClosed(f.id);
       let badge;
       if(b!=null)          badge=`<div class="spc-pts">+${b.total}</div>`;
       else if(kicked&&hasR)badge=`<div class="spc-state wait">gewertet</div>`;
@@ -1755,7 +1755,7 @@ function openStarEval(fid){
   const f=DB.fixtures.find(x=>x.id===fid), p=pl(DB.stars[fid]); if(!f||!p)return;
   const r=DB.results[fid], hasR=r&&r.h!=null;
   const b=starBreakdown(fid);
-  const kicked=Date.now()>=new Date(f.ko).getTime();
+  const kicked=tipClosed(fid);
   const mins=b?(b.min===2?'60 Minuten +':(b.min===1?'unter 60 Minuten':'nicht eingesetzt')):'—';
   let rows='';
   if(b){
