@@ -873,7 +873,7 @@ async function fetchLeaderboard(){
     const list=rows||[];
     if(list.length){ DB.league.members=list.map(r=>r.uname||'Spieler'); }
     S.lbData=list.map(r=>{const sObj=r.ustate||{};
-      return {id:r.uid,n:r.uname||'Spieler',fav:(sObj.me&&sObj.me.fav)||'',pts:pointsForState(sObj),tip:tipPointsForState(sObj),star:starPointsForState(sObj),st:sObj,me:r.uid===USER.id};})
+      return {id:r.uid,n:r.uname||'Spieler',fav:r.fav||(sObj.me&&sObj.me.fav)||'',pts:(r.total||0),tip:(r.tip||0),star:(r.star||0),st:sObj,me:r.uid===USER.id};})
       .sort((a,b)=>b.pts-a.pts||a.n.localeCompare(b.n));
   }catch(e){ console.warn('leaderboard',e); S.lbData=null; S.lbErr='Ausnahme: '+(e&&e.message||String(e)); }
 }
@@ -942,6 +942,7 @@ function authMsg(m){ m=(m||'').toLowerCase();
 async function doSignup(){
   const name=($('#au-name').value||'').trim(), uraw=($('#au-user').value||'').trim(), pw=$('#au-pw').value||'';
   const dn=nameAllowed(name); if(!dn.ok)return authErr(dn.msg);
+  try{ const {data:taken}=await sb.rpc('cl_name_taken',{p_name:name}); if(taken)return authErr('Name schon vergeben — bitte einen anderen wählen.'); }catch(e){ console.warn('nametaken',e); }
   const un=usernameAllowed(uraw); if(!un.ok)return authErr(un.msg);
   if(pw.length<8)return authErr('Passwort: mindestens 8 Zeichen.');
   authErr('…');
@@ -1297,7 +1298,8 @@ async function boot(){
   if(!DB.me){ persist(); renderOnboard(); return; }
   persist(); render();
 }
-async function persist(){ if(CLOUD&&USER&&sb){ try{ await sb.from('user_state').upsert({user_id:USER.id,name:(DB.me&&DB.me.name)||'',state:{me:DB.me,preds:DB.preds,stars:DB.stars,trio:DB.trio,league:DB.league,leagues:(DB.leagues||[]),activeLeague:(DB.league&&DB.league.code)||null,fxOn:DB.fxOn,special:DB.special,refPts:(DB.refPts||0),pts:{tip:myTipPoints(),star:myStarPoints(),spec:mySpecialPoints()}},updated_at:new Date().toISOString()}); }catch(e){ console.warn('persist',e); } } else { await sset(KEY,DB); } }
+async function persist(){ if(CLOUD&&USER&&sb){ try{ const {error}=await sb.from('user_state').upsert({user_id:USER.id,name:(DB.me&&DB.me.name)||'',state:{me:DB.me,preds:DB.preds,stars:DB.stars,trio:DB.trio,league:DB.league,leagues:(DB.leagues||[]),activeLeague:(DB.league&&DB.league.code)||null,fxOn:DB.fxOn,special:DB.special,refPts:(DB.refPts||0),pts:{tip:myTipPoints(),star:myStarPoints(),spec:mySpecialPoints()}},updated_at:new Date().toISOString()}); if(error){ console.warn('persist',error); return error; } return true; }catch(e){ console.warn('persist',e); return e; } } else { await sset(KEY,DB); return true; } }
+function persistFail(r){ const m=(r&&r.message)||''; return /geschlossen|gesperrt|Anpfiff|Spieltag|closed|locked/i.test(m)?'Zu spät — schon gesperrt':'Speichern fehlgeschlagen — nochmal versuchen'; }
 
 /* ---------- onboarding ---------- */
 function detectTz(){try{return Intl.DateTimeFormat().resolvedOptions().timeZone||'';}catch(e){return '';}}
@@ -1544,7 +1546,7 @@ function setPred(id,side,val){ if(tipClosed(id))return;
   const pill=document.querySelector('.hd-pts .v');if(pill)pill.textContent=totalPoints();
 }
 function setDraft(id,side,val){ S.draft=S.draft||{}; S.draft[id]=S.draft[id]||{}; S.draft[id][side]= val===''?null:Math.max(0,Math.min(20,parseInt(val)||0)); const p=DB.preds[id]||{}; const d=S.draft[id]; const eh=d.h!=null?d.h:(p.h!=null?p.h:null), ea=d.a!=null?d.a:(p.a!=null?p.a:null); const sub=p.h!=null&&p.a!=null; const can=eh!=null&&ea!=null&&(!sub||eh!==p.h||ea!==p.a); const b=document.getElementById('submit-'+id); if(b){ b.disabled=!can; b.textContent=sub?'Tipp aktualisieren':'Tipp einreichen'; } }
-function submitTip(id){ const d=(S.draft&&S.draft[id])||{}; const p=DB.preds[id]||{}; const h=d.h!=null?d.h:p.h, a=d.a!=null?d.a:p.a; if(h==null||a==null)return toast('Bitte beide Tore eintragen'); if(tipClosed(id))return toast('Tippen geschlossen — das Spiel hat schon angepfiffen'); DB.preds[id]={h,a}; if(S.draft)delete S.draft[id]; persist(); toast('Tipp eingereicht ✓'); render(); }
+async function submitTip(id){ const d=(S.draft&&S.draft[id])||{}; const prev=DB.preds[id]; const p=prev||{}; const h=d.h!=null?d.h:p.h, a=d.a!=null?d.a:p.a; if(h==null||a==null)return toast('Bitte beide Tore eintragen'); if(tipClosed(id))return toast('Tippen geschlossen — das Spiel hat schon angepfiffen'); DB.preds[id]={h,a}; const r=await persist(); if(r!==true){ if(prev)DB.preds[id]=prev; else delete DB.preds[id]; render(); return toast(persistFail(r)); } if(S.draft)delete S.draft[id]; toast('Tipp eingereicht ✓'); render(); }
 function removeTip(id){ if(tipClosed(id))return toast('Das Spiel hat schon angepfiffen — Tipp bleibt fix.'); delete DB.preds[id]; if(S.draft)delete S.draft[id]; persist(); toast('Tipp entfernt'); render(); }
 
 /* ============================================================ K.O.-PHASE — Ansicht ============================================================ */
@@ -1672,7 +1674,7 @@ function renderStarPick(){
     <div class="sheet-bd" style="padding-top:8px">${block(f.home)}${block(f.away)}<div style="height:14px"></div>${cur?`<button class="btn btn-out btn-wide btn-sm" onclick="removeStar(${fid})">${svg(I.x)} Captain entfernen</button>`:''}<div style="height:8px"></div></div>`);
 }
 function setSpPos(x){S.spPos=x;renderStarPick();}
-function setStar(fid,pid){if(tipClosed(fid))return toast('Anpfiff vorbei — Captain gesperrt');DB.stars[fid]=pid;persist();closeSheet();render();const p=pl(pid);toast('Captain: '+lastName(p.name));confetti(14,.42);}
+async function setStar(fid,pid){if(tipClosed(fid))return toast('Anpfiff vorbei — Captain gesperrt');const prev=DB.stars[fid];DB.stars[fid]=pid;const r=await persist();if(r!==true){if(prev!=null)DB.stars[fid]=prev;else delete DB.stars[fid];render();return toast(persistFail(r));}closeSheet();render();const p=pl(pid);toast('Captain: '+lastName(p.name));confetti(14,.42);}
 function removeStar(fid){if(tipClosed(fid))return toast('Anpfiff vorbei');delete DB.stars[fid];persist();closeSheet();render();}
 function viewStars(){
   const now=Date.now();
@@ -1868,7 +1870,7 @@ function renderSpecialPick(keepFocus){
     </div>`);
   if(keepFocus){ const el=$('#sp-q'); if(el){ el.focus(); try{el.setSelectionRange(el.value.length,el.value.length);}catch(e){} } }
 }
-function setSpecial(pid){ DB.special=DB.special||{}; DB.special[S.spField]=pid; persist(); closeSheet(); render(); const p=pl(pid); toast('Sondertipp: '+(p?lastName(p.name):'gespeichert')); }
+async function setSpecial(pid){ DB.special=DB.special||{}; const fld=S.spField; const prev=DB.special[fld]; DB.special[fld]=pid; const r=await persist(); if(r!==true){ if(prev!=null)DB.special[fld]=prev; else delete DB.special[fld]; render(); return toast(persistFail(r)); } closeSheet(); render(); const p=pl(pid); toast('Sondertipp: '+(p?lastName(p.name):'gespeichert')); }
 function clearSpecial(){ if(DB.special)delete DB.special[S.spField]; persist(); closeSheet(); render(); }
 
 /* ============================================================ RANGLISTE ============================================================ */
@@ -2021,11 +2023,11 @@ function openSettings(){
       <button class="set-link" onclick="openGuide()"><span>Anleitung &amp; Punkte</span>${svg(I.chevR)}</button>
       <button class="set-link" onclick="openLegal()"><span>Rechtliche Hinweise &amp; Datenschutz</span>${svg(I.chevR)}</button>
       ${CLOUD?`<button class="set-link" onclick="doLogout()"><span>Abmelden</span>${svg(I.chevR)}</button>`:''}
-      <button class="set-link danger" onclick="resetAll()"><span>${CLOUD?'App-Daten zurücksetzen':'Alle Daten zurücksetzen'}</span>${svg(I.chevR)}</button>
+      ${CLOUD?`<button class="set-link danger" onclick="doDeleteAccount()"><span>Konto &amp; Daten löschen</span>${svg(I.chevR)}</button>`:''}<button class="set-link danger" onclick="resetAll()"><span>${CLOUD?'App-Daten zurücksetzen':'Alle Daten zurücksetzen'}</span>${svg(I.chevR)}</button>
       <p class="note" style="margin-top:16px;text-align:center">Captain League · inoffizielles WM-Tippspiel</p>
     </div>`);
 }
-function saveProfile(){const n=($('#set-name').value||'').trim();const _c=nameAllowed(n);if(!_c.ok)return toast(_c.msg);DB.me.name=n;DB.me.fav=$('#set-fav').value||'';persist();closeSheet();render();toast('Profil gespeichert');}
+async function saveProfile(){const n=($('#set-name').value||'').trim();const _c=nameAllowed(n);if(!_c.ok)return toast(_c.msg);if(CLOUD&&sb&&n.toLowerCase()!==(((DB.me&&DB.me.name)||'').toLowerCase())){try{const {data:taken}=await sb.rpc('cl_name_taken',{p_name:n});if(taken)return toast('Name schon vergeben — bitte einen anderen wählen');}catch(e){console.warn('nametaken',e);}}DB.me.name=n;DB.me.fav=$('#set-fav').value||'';const r=await persist();if(r!==true)return toast(persistFail(r));closeSheet();render();toast('Profil gespeichert');}
 function openChangePw(){ if(!CLOUD)return; sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>Passwort ändern</h2><div class="ss">Mindestens 8 Zeichen</div></div>
     <div class="sheet-bd">
       <div class="field"><label>Neues Passwort</label><input id="pw-1" type="password" autocomplete="new-password" placeholder="••••••••"></div>
@@ -2042,6 +2044,8 @@ function toggleFx(btn){DB.fxOn=(DB.fxOn===false);btn.classList.toggle('on',DB.fx
 function leaveLeague(){confirmSheet('Liga verlassen?','Du verlässt die aktuelle Liga und kommst zurück zum Start. Deine Tipps bleiben erhalten.','Verlassen',doLeave);}
 function doLeave(){ const cur=DB.league; if(CLOUD&&cur&&cur.code&&USER){ try{ sb.from('league_members').delete().eq('code',cur.code).eq('user_id',USER.id); }catch(e){} } DB.leagues=(DB.leagues||[]).filter(l=>!cur||l.code!==cur.code); DB.league=DB.leagues[0]||null; S.lbData=null; persist(); if(DB.league){ S.tab='rangliste'; render(); if(CLOUD)fetchLeaderboard().then(()=>render()); toast('Liga verlassen'); } else { renderOnboard('welcome'); } }
 function resetAll(){confirmSheet('Alles zurücksetzen?','Alle Tipps, dein Trio, dein Profil und deine Liga werden endgültig gelöscht.','Löschen',doReset);}
+function doDeleteAccount(){confirmSheet('Konto & Daten löschen?','Alle deine Tipps, Captains, Sondertipps, Ligen und dein Profil werden dauerhaft gelöscht. Du wirst abgemeldet.','Endgültig löschen',_doDeleteAccount);}
+async function _doDeleteAccount(){ try{ if(CLOUD&&sb){ const {error}=await sb.rpc('delete_my_data'); if(error){ toast('Löschen fehlgeschlagen: '+(error.message||error.code||'?')); return; } } }catch(e){ console.warn('del',e); toast('Löschen fehlgeschlagen — nochmal versuchen'); return; } try{ if(sb)await sb.auth.signOut(); }catch(e){} try{ await sdel(KEY); }catch(e){} try{ localStorage.removeItem(KEY); }catch(e){} location.reload(); }
 function doReset(){DB={me:null,fixtures:[],preds:{},results:{},trio:{},stars:{},league:null,leagues:[],special:{},refPts:0};persist();renderOnboard('welcome');}
 function confirmSheet(title,msg,ok,fn){window.__ok=fn;sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>${esc(title)}</h2><div class="ss">${esc(msg)}</div></div>
   <div class="sheet-bd"><button class="btn btn-pri btn-wide" style="background:var(--bad)" onclick="(window.__ok||function(){})()">${esc(ok)}</button><button class="btn btn-soft btn-wide" style="margin-top:9px" onclick="closeSheet()">Abbrechen</button></div>`);}
