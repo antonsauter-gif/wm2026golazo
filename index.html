@@ -2308,7 +2308,7 @@ async function adminClearMatch(){
   delete PERF[mk];
   toast('Spiel zurückgesetzt'); refreshAfterAdmin(); renderAdminMatch();
 }
-function refreshAfterAdmin(){ const pill=document.querySelector('.hd-pts .v'); if(pill)pill.textContent=totalPoints(); persist(); }
+function refreshAfterAdmin(){ const pill=document.querySelector('.hd-pts .v'); if(pill)pill.textContent=totalPoints(); }
 
 /* ============================================================ ADMIN — K.O.-Phase ============================================================ */
 async function koSet(key,val){
