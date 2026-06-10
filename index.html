@@ -902,6 +902,8 @@ html,body{overscroll-behavior-y:none}
 .cl-note-t{font-size:12.5px;line-height:1.5;color:rgba(255,255,255,.92)}
 .cl-note-ok{flex:0 0 auto;background:var(--accent-grad);color:#fff;border:0;border-radius:var(--pill);font-weight:800;font-size:13px;padding:9px 16px;cursor:pointer;font-family:inherit}
 .legal p{font-size:13.5px;line-height:1.6;color:var(--ink-2);margin:0 0 10px}
+.pick-n{flex:0 0 auto;font-family:var(--fd);font-weight:700;font-size:12px;letter-spacing:.04em;color:var(--accent-ink);background:var(--accent-wash);border-radius:var(--pill);padding:4px 9px}
+.am-stars.miss{color:var(--accent-ink);font-weight:800}
 </style>
 </head>
 <body>
@@ -2268,7 +2270,10 @@ function openLegal(sec){
 function openAdminGate(){ if(!DB.isAdmin)return toast('Kein Admin-Zugang — nur für den Betreiber.'); openAdmin(); }
 let _admT=null;
 function admDeb(fn){clearTimeout(_admT);_admT=setTimeout(fn,450);}
-function openAdmin(){ if(!DB.isAdmin)return; S.admMd=S.admMd||1; S.admFilter=S.admFilter||'all'; renderAdminList(); }
+let ADMIN_PICKS=null;
+async function loadAdminPicks(){ ADMIN_PICKS={}; if(!(CLOUD&&sb&&DB.isAdmin))return; try{ const {data,error}=await sb.rpc('admin_star_picks'); if(!error&&data){ data.forEach(r=>{ (ADMIN_PICKS[r.fixture_id]=ADMIN_PICKS[r.fixture_id]||[]).push({pid:r.player_id,n:r.picks}); }); } }catch(e){ console.warn('admpicks',e); } }
+function toggleAdmAll(){ S.admShowAll=!S.admShowAll; renderAdminMatch(); }
+async function openAdmin(){ if(!DB.isAdmin)return; S.admMd=S.admMd||1; S.admFilter=S.admFilter||'all'; await loadAdminPicks(); renderAdminList(); }
 function setAdmMd(m){ S.admMd=m; renderAdminList(); }
 function setAdmFilter(x){ S.admFilter=x; renderAdminList(); }
 function renderAdminList(){
@@ -2281,7 +2286,9 @@ function renderAdminList(){
   let rows=fx.map(f=>{
     const r=DB.results[f.id], mk=matchKey(f), pc=PERF[mk]?Object.keys(PERF[mk]).length:0;
     const badge=r?`<span class="am-res set">${r.h} : ${r.a}</span>`:`<span class="am-res">–</span>`;
-    const stars=pc?`<span class="am-stars">★ ${pc}</span>`:'';
+    const pk=(ADMIN_PICKS&&ADMIN_PICKS[f.id])||[];
+    const pkDone=pk.filter(x=>{const pp=pl(x.pid);return pp&&PERF[mk]&&(PERF[mk][pp.name]||PERF[mk][lastName(pp.name)]);}).length;
+    const stars=pk.length?`<span class="am-stars${pkDone<pk.length?' miss':''}">★ ${pkDone}/${pk.length}</span>`:(pc?`<span class="am-stars">★ ${pc}</span>`:'');
     return `<button class="am-row" onclick="openAdminMatch(${f.id})">
       <div class="am-meta"><span>Gr. ${f.g} · ${koDow(f.ko)} ${koShort(f.ko)}</span>${stars}</div>
       <div class="am-line">
@@ -2331,6 +2338,13 @@ function renderAdminMatch(){
   const mk=matchKey(f), blk=PERF[mk]||{}, hasRes=DB.results[fid]!=null;
   const sc=S.admScore||{h:0,a:0};
   const posList=S.admPos==='all'?['GK','DEF','MID','FWD']:[S.admPos];
+  const picks=(ADMIN_PICKS&&ADMIN_PICKS[fid])||[];
+  const perfOf=(p)=>blk[p.name]||blk[lastName(p.name)];
+  const doneCnt=picks.filter(x=>{const p=pl(x.pid);return p&&perfOf(p);}).length;
+  const pickRows=picks.map(x=>{const p=pl(x.pid); if(!p)return ''; const pf=perfOf(p);
+    const meta=pf?`${pf.m===2?"60'+":pf.m===1?"<60'":'nicht gespielt'} · ${pf.g||0} T · ${pf.a||0} A${pf.y?' · Gelb':''}${pf.r?' · Rot':''}`:`${POSLBL[p.pos]} · noch nicht erfasst`;
+    return `<div class="ppl ${pf?'sel':''}" onclick="openAdminPlayerPerf(${fid},'${p.id}')">\n      <span class="ppl-fl">${fi(p.team)}</span>\n      <div class="ppl-i"><div class="ppl-n">${esc(p.name)} <span class="ms-pos">${POSSHORT[p.pos]}</span></div><div class="ppl-m">${meta}</div></div>\n      <span class="pick-n">${x.n}×</span></div>`;
+  }).join('');
   function stepper(side){
     return `<div class="as-step"><button class="stp" onclick="admScoreStep('${side}',-1)">−</button><div class="as-val" id="as-${side}">${sc[side]||0}</div><button class="stp" onclick="admScoreStep('${side}',1)">+</button></div>`;
   }
@@ -2360,9 +2374,10 @@ function renderAdminMatch(){
         <button class="btn btn-out${hasRes?'':' off'}" onclick="adminClearResult()">${svg(I.x)} Austragen</button>
       </div>
 
-      <div class="adm-h" style="margin-top:22px">Captain-Leistungen</div>
-      <div class="seg-pos" style="margin-bottom:10px">${['all','GK','DEF','MID','FWD'].map(x=>`<button class="${S.admPos===x?'on':''}" onclick="setAdmPos('${x}')">${x==='all'?'Alle':POSSHORT[x]}</button>`).join('')}</div>
-      ${pblock(f.home)}${pblock(f.away)}
+      <div class="adm-h" style="margin-top:22px">Gewählte Captains${picks.length?` · ${doneCnt}/${picks.length} erfasst`:''}</div>
+      ${picks.length?pickRows:`<div class="adm-note">${svg(I.check)} Für dieses Spiel hat niemand einen Captain gewählt — keine Leistungen nötig.</div>`}
+      <button class="btn btn-soft btn-wide btn-sm" style="margin-top:14px" onclick="toggleAdmAll()">${S.admShowAll?'Weitere Spieler ausblenden':'Weitere Spieler erfassen (Korrekturen)'}</button>
+      ${S.admShowAll?`<div class="seg-pos" style="margin:12px 0 10px">${['all','GK','DEF','MID','FWD'].map(x=>`<button class="${S.admPos===x?'on':''}" onclick="setAdmPos('${x}')">${x==='all'?'Alle':POSSHORT[x]}</button>`).join('')}</div>${pblock(f.home)}${pblock(f.away)}`:''}
 
       <button class="btn btn-out btn-wide btn-sm" style="margin-top:18px" onclick="confirmSheet('Spiel zurücksetzen?','Ergebnis und alle Captain-Leistungen dieses Spiels werden gelöscht.','Zurücksetzen',adminClearMatch)">${svg(I.x)} Ganzes Spiel zurücksetzen</button>
       <button class="btn btn-soft btn-wide btn-sm" style="margin-top:9px" onclick="renderAdminList()">${svg(I.chevL)} Zurück zur Liste</button>
@@ -2372,7 +2387,7 @@ function openAdminPlayerPerf(fid,pid){
   const f=DB.fixtures.find(x=>x.id===fid), p=pl(pid); if(!f||!p)return;
   const mk=matchKey(f), blk=PERF[mk]||{};
   const exists=!!(blk[p.name]||blk[lastName(p.name)]);
-  const pf=blk[p.name]||blk[lastName(p.name)]||{m:0,g:0,a:0};
+  const pf=blk[p.name]||blk[lastName(p.name)]||{m:2,g:0,a:0};
   S.admPP={fid,pid,m:pf.m||0,g:pf.g||0,a:pf.a||0,y:pf.y||0,r:pf.r||0};
   const ga=(field,lbl,max)=>`<div class="ga-row"><span class="ga-lbl">${lbl}</span><div class="as-step"><button class="stp" onclick="admGAStep('${field}',-1,${max})">−</button><div class="as-val" id="app-${field}">${pf[field]||0}</div><button class="stp" onclick="admGAStep('${field}',1,${max})">+</button></div></div>`;
   sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>${esc(lastName(p.name))}</h2><div class="ss">${fi(p.team)} ${esc(p.name)} · ${POSLBL[p.pos]}</div></div>
