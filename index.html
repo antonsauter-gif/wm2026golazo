@@ -1030,7 +1030,7 @@ function renderAuth(mode){
     <label class="rem"><input type="checkbox" id="au-rem" checked onchange="setRemember(this.checked)"><span>Angemeldet bleiben</span></label>
     <div id="au-err" class="auth-err"></div>
     <button class="btn btn-pri btn-wide" onclick="${su?'doSignup()':'doLogin()'}">${su?'Konto erstellen':'Anmelden'}</button>
-    <div class="ob-mini" style="margin-top:14px">Inoffizielles WM-Tippspiel · kein Einsatz, keine Preise · <button class="linkish" onclick="openLegal('ds')">Rechtliches &amp; Datenschutz</button></div>
+    <div class="ob-mini" style="margin-top:14px">Inoffizielles WM-Tippspiel · kein Einsatz, keine Preise · <button class="linkish" onclick="openLegal()">Rechtliches &amp; Datenschutz</button></div>
   </div>`;
 }
 function authErr(m){const e=$('#au-err'); if(e){e.textContent=m||''; e.style.display=m?'block':'none';}}
@@ -2124,7 +2124,9 @@ function openSettings(){
       ${CLOUD?`<div class="set-sec">Konto</div><button class="set-link" onclick="openChangePw()"><span>Passwort ändern</span>${svg(I.chevR)}</button>`:''}
       <div class="set-sec">Über &amp; Rechtliches</div>
       <button class="set-link" onclick="openGuide()"><span>Anleitung &amp; Punkte</span>${svg(I.chevR)}</button>
-      <button class="set-link" onclick="openLegal()"><span>Rechtliche Hinweise &amp; Datenschutz</span>${svg(I.chevR)}</button>
+      <button class="set-link" onclick="openLegal('imp')"><span>Impressum</span>${svg(I.chevR)}</button>
+      <button class="set-link" onclick="openLegal('nutzung')"><span>Nutzungsbedingungen</span>${svg(I.chevR)}</button>
+      <button class="set-link" onclick="openLegal('ds')"><span>Datenschutzerklärung</span>${svg(I.chevR)}</button>
       ${CLOUD?`<button class="set-link" onclick="doLogout()"><span>Abmelden</span>${svg(I.chevR)}</button>`:''}
       ${CLOUD?`<button class="set-link danger" onclick="doDeleteAccount()"><span>Konto &amp; Daten löschen</span>${svg(I.chevR)}</button>`:''}<button class="set-link danger" onclick="resetAll()"><span>${CLOUD?'App-Daten zurücksetzen':'Alle Daten zurücksetzen'}</span>${svg(I.chevR)}</button>
       <p class="note" style="margin-top:16px;text-align:center">Captain League · inoffizielles WM-Tippspiel</p>
@@ -2243,35 +2245,17 @@ function openHowItWorks(){
     </div>`);
 }
 function openLegal(sec){
-  sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>Rechtliches &amp; Datenschutz</h2><div class="ss">Impressum · Nutzungsbedingungen · Datenschutzerklärung</div></div>
+  const docs={imp:'impressum.html',ds:'datenschutz.html',nutzung:'nutzungsbedingungen.html'};
+  if(sec&&docs[sec]){ window.open(docs[sec],'_blank'); return; }
+  sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>Rechtliches</h2><div class="ss">Impressum · Nutzungsbedingungen · Datenschutzerklärung</div></div>
     <div class="sheet-bd legal">
-      <h4 id="leg-imp">Impressum</h4>
-      <p>Verantwortlich für Captain League (captainleague.ch):<br><b>Anton Sauter</b><br>[Strasse Nr.]<br>[PLZ Ort], Schweiz<br>E-Mail: [deine E-Mail-Adresse]</p>
-      <p>Privates, nicht-kommerzielles Tippspiel zur Fussball-WM 2026 — ohne Werbung und ohne kostenpflichtige Leistungen.</p>
-      <h4>Keine Verbindung zur FIFA</h4>
-      <p>Captain League ist ein inoffizielles, privates Tippspiel und steht in keiner Verbindung zur FIFA oder zu offiziellen Veranstaltern. Team-, Wettbewerbs- und Spielernamen sowie alle Marken gehören ihren jeweiligen Inhabern; Spielplan- und Spielerdaten dienen ausschliesslich Informations- und Unterhaltungszwecken.</p>
-      <h4>Kein Glücksspiel</h4>
-      <p>Captain League ist kostenlos. Über die Plattform gibt es keinen Geldeinsatz, keine Wetten und keine Geldgewinne. Private Abmachungen unter Teilnehmenden liegen ausserhalb der Verantwortung des Betreibers.</p>
-      <h4 id="leg-nutzung">Nutzungsbedingungen</h4>
-      <p>Ein Konto pro Person. Wähle einen Benutzernamen, der keine Rechte Dritter verletzt und nicht anstössig ist.</p>
-      <p>Tipps und Captain-Wahlen sind ab Spielbeginn (bzw. ab erfasstem Resultat) verbindlich und können nicht mehr geändert werden.</p>
-      <p>Bei Manipulation, Mehrfachkonten oder anstössigem Verhalten kann der Betreiber Konten sperren und Wertungen korrigieren. Es besteht kein Anspruch auf ständige Verfügbarkeit oder fehlerfreie Punkteberechnung; offensichtliche Fehler dürfen korrigiert werden.</p>
-      <p>Es gilt Schweizer Recht.</p>
-      <h4 id="leg-ds">Datenschutzerklärung</h4>
-      <p><b>Verantwortlicher:</b> siehe Impressum.</p>
-      <p><b>Verarbeitete Daten:</b> Kontodaten (Benutzername; Passwort — ausschliesslich verschlüsselt gespeichert; intern wird eine technische Login-Kennung verwendet, eine echte E-Mail-Adresse ist nicht nötig), Spieldaten (Tipps, Captains, Sondertipps, Punkte, Liga-Zugehörigkeit, Einladungen) sowie technische Zugriffsdaten (z.&nbsp;B. IP-Adresse) in den Server-Logs der unten genannten Anbieter.</p>
-      <p><b>Zwecke &amp; Rechtsgrundlagen:</b> Betrieb des Spiels, Berechnung und Anzeige der Ranglisten sowie Schutz vor Missbrauch (Moderation). Grundlage sind die Durchführung der Spielteilnahme und das berechtigte Interesse an einem sicheren Betrieb (Schweizer DSG; für Nutzer im EWR: Art.&nbsp;6 Abs.&nbsp;1 lit.&nbsp;b und f DSGVO).</p>
-      <p><b>Sichtbarkeit für andere:</b> Dein Benutzername, dein Lieblingsteam und deine Punkte erscheinen in den Ranglisten. Mitglieder deiner Liga sehen deine Tipps und Captains erst nach Spielbeginn.</p>
-      <p><b>Empfänger / Auftragsverarbeiter:</b> Supabase (Datenbank &amp; Login), GitHub Pages (Auslieferung der Website; GitHub Inc., USA), Cloudflare (DNS). Die Schriften werden über Google Fonts von Google-Servern geladen; dabei wird deine IP-Adresse an Google übertragen. Es gibt keine Werbung, kein Tracking, keine Analyse-Tools und keinen Verkauf von Daten.</p>
-      <p><b>Lokale Speicherung («Cookies»):</b> Es wird ausschliesslich technisch notwendige lokale Speicherung im Browser genutzt (Login-Sitzung, Spielstand). Keine Tracking-Cookies. Du kannst sie jederzeit über deine Browserdaten löschen; danach musst du dich neu anmelden.</p>
-      <p><b>Speicherdauer &amp; Löschung:</b> Deine Daten bleiben gespeichert, bis du dein Konto löschst — direkt in der App unter Einstellungen → «Konto &amp; Daten löschen». Damit werden Konto, Tipps, Captains, Liga-Zugehörigkeit und Einladungen entfernt.</p>
-      <p><b>Deine Rechte:</b> Auskunft, Berichtigung und Löschung deiner Daten — am schnellsten direkt in der App oder per E-Mail an die Adresse im Impressum.</p>
-      <h4>Keine Gewähr</h4>
-      <p>Alle Angaben (Spielplan, Anstosszeiten, Spieler- und Leistungsdaten) erfolgen ohne Gewähr auf Richtigkeit, Vollständigkeit oder Aktualität. Anstosszeiten werden in deiner lokalen Gerätezeit angezeigt und können von offiziellen Angaben abweichen.</p>
-      <p class="legal-date">Stand: 10. Juni 2026 · Captain League</p>
+      <p><b>Captain League</b> ist ein privates, kostenloses Tippspiel von Anton Sauter, Neuwiesenstrasse 37, 8706 Meilen (Schweiz) — ohne Werbung, ohne Einsätze, ohne Geldgewinne und ohne Verbindung zur FIFA. Kontakt: anton.sauter@icloud.com</p>
+      <button class="set-link" onclick="openLegal('imp')"><span>Impressum</span>${svg(I.chevR)}</button>
+      <button class="set-link" onclick="openLegal('nutzung')"><span>Nutzungsbedingungen</span>${svg(I.chevR)}</button>
+      <button class="set-link" onclick="openLegal('ds')"><span>Datenschutzerklärung</span>${svg(I.chevR)}</button>
+      <p class="legal-date" style="margin-top:14px">Die Dokumente öffnen sich in einem neuen Tab.</p>
       <button class="btn btn-soft btn-wide" style="margin-top:6px" onclick="closeSheet()">Schliessen</button>
     </div>`);
-  if(sec){ setTimeout(function(){ var el=document.getElementById('leg-'+sec); if(el)el.scrollIntoView({block:'start'}); },90); }
 }
 /* ============================================================ ADMIN — Ergebnisse & Captain-Leistungen (nur Betreiber) ============================================================ */
 function openAdminGate(){ if(!DB.isAdmin)return toast('Kein Admin-Zugang — nur für den Betreiber.'); openAdmin(); }
