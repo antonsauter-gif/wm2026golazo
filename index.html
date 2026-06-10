@@ -940,7 +940,7 @@ async function loadResultsCloud(FX){
   DB.results={};
   try{ const {data:res}=await sb.from('results').select('match,h,a'); const by={}; (res||[]).forEach(r=>{by[r.match]={h:r.h,a:r.a};}); FX.forEach(f=>{const r=by[f.home+'-'+f.away]; if(r&&r.h!=null&&r.a!=null)DB.results[f.id]={h:r.h,a:r.a};}); KO_FIX.forEach(k=>{const rr=by['ko'+k.id]; if(rr&&rr.h!=null&&rr.a!=null)DB.results[k.id]={h:rr.h,a:rr.a};}); }catch(e){ console.warn('results',e); }
   try{ const {data:perf}=await sb.from('performances').select('*'); PERF={}; (perf||[]).forEach(r=>{ (PERF[r.match]=PERF[r.match]||{})[r.player]={m:r.m||0,g:r.g||0,a:r.a||0,y:r.y||0,r:r.r||0}; }); }catch(e){ console.warn('perf',e); }
-  try{ const {data:ks}=await sb.from('ko_state').select('k,v'); KO_SEEDS={};KO_ADV={};KO_UNLOCKED=false; (ks||[]).forEach(row=>{ if(row.k==='seeds'){try{KO_SEEDS=JSON.parse(row.v)||{};}catch(_e){}} else if(row.k==='adv'){try{KO_ADV=JSON.parse(row.v)||{};}catch(_e){}} else if(row.k==='unlocked'){KO_UNLOCKED=row.v==='1';} }); }catch(e){ console.warn('ko_state',e); }
+  try{ const {data:ks}=await sb.from('ko_state').select('k,v'); KO_SEEDS={};KO_ADV={};KO_UNLOCKED=false;KO_CHAMP=null; (ks||[]).forEach(row=>{ if(row.k==='seeds'){try{KO_SEEDS=JSON.parse(row.v)||{};}catch(_e){}} else if(row.k==='adv'){try{KO_ADV=JSON.parse(row.v)||{};}catch(_e){}} else if(row.k==='unlocked'){KO_UNLOCKED=row.v==='1';} else if(row.k==='champion'){KO_CHAMP=row.v||null;} }); }catch(e){ console.warn('ko_state',e); }
 }
 async function loadCloud(FX){
   DB=EMPTY_DB(); DB.fixtures=FX;
@@ -1313,7 +1313,7 @@ const KO_FIX=[
 ];
 const KO_ROUNDS=[["Runde der letzten 32",1],["Achtelfinal",2],["Viertelfinal",3],["Halbfinal",4],["Spiel um Platz 3",5],["Final",6]];
 const KO_BY_ID={}; KO_FIX.forEach(k=>KO_BY_ID[k.id]=k);
-let KO_SEEDS={}, KO_ADV={}, KO_UNLOCKED=false;
+let KO_SEEDS={}, KO_ADV={}, KO_UNLOCKED=false, KO_CHAMP=null;
 function koUnlocked(){ return !!KO_UNLOCKED; }
 function koFirstKO(){ return KO_FIX.reduce((m,k)=>{const t=new Date(k.ko).getTime(); return t<m?t:m;}, Infinity); }
 function koResolve(){ /* no-op: resolver is stateless, kept for call-site compat */ }
@@ -1439,6 +1439,7 @@ function renderOnboard(mode){
       <div class="sub">Gib eurer Tipprunde einen Namen. Den Einladungscode bekommst du gleich danach.</div>
       <div class="field"><label>Liga-Name</label><input id="ob-league" placeholder="z.B. WM-Crew Meilen" autocomplete="off" maxlength="30"></div>
       <div class="field"><label>Lieblingsteam <span class="opt">optional</span></label><select id="ob-fav">${favOpts}</select><div class="fld-h">Erscheint als Flagge bei deinem Namen.</div></div>
+      <div class="field"><label>Wer wird Weltmeister? <span class="opt">+20 Punkte</span></label><select id="ob-champ">${favOpts}</select><div class="fld-h">Dein grosser Tipp — änderbar bis Ende Spieltag 2.</div></div>
       <div class="ob-region">${svg(I.clock)} Anstosszeiten in deiner Zeit · <b>${tzCity()}</b></div>
       <button class="btn btn-pri btn-wide ob-go" onclick="doCreate()">Liga erstellen</button></div>`;
   } else if(mode==='join'){
@@ -1448,6 +1449,7 @@ function renderOnboard(mode){
       <div class="sub">Gib den 5-stelligen Code ein, den du von Freunden bekommen hast.</div>
       <div class="field"><label>Liga-Code</label><input id="ob-code" placeholder="z.B. K7P2X" autocomplete="off" maxlength="6" value="${esc(PENDING_CODE||'')}" oninput="this.value=this.value.toUpperCase()" class="code-in"></div>
       <div class="field"><label>Lieblingsteam <span class="opt">optional</span></label><select id="ob-fav">${favOpts}</select><div class="fld-h">Erscheint als Flagge bei deinem Namen.</div></div>
+      <div class="field"><label>Wer wird Weltmeister? <span class="opt">+20 Punkte</span></label><select id="ob-champ">${favOpts}</select><div class="fld-h">Dein grosser Tipp — änderbar bis Ende Spieltag 2.</div></div>
       <div class="ob-region">${svg(I.clock)} Anstosszeiten in deiner Zeit · <b>${tzCity()}</b></div>
       <button class="btn btn-pri btn-wide ob-go" onclick="doJoin()">Beitreten</button></div>`;
   } else if(mode==='created'){
@@ -1472,6 +1474,7 @@ async function doCreate(){
   if((DB.leagues||[]).length>=3)return toast('Maximal 3 Ligen — verlasse zuerst eine.');
   const _cl=nameAllowed(lg); if(!_cl.ok)return toast('Liga-Name nicht erlaubt — bitte anders benennen.');
   const fav=($('#ob-fav')||{}).value||(DB.me&&DB.me.fav)||'', tz=(DB.me&&DB.me.tz)||detectTz();
+  const _ch=($('#ob-champ')||{}).value||''; if(_ch){DB.special=DB.special||{};DB.special.champ=_ch;}
   if(CLOUD){
     let code=genCode(), made=false;
     for(let i=0;i<10;i++){ const {error}=await sb.rpc('create_league',{p_code:code,p_name:lg,p_owner_name:name}); if(!error){made=true;break;} console.warn('create try',error); code=genCode(); }
@@ -1493,6 +1496,7 @@ async function doJoin(){
   const _exist=(DB.leagues||[]).find(l=>l.code===code); if(_exist){ DB.league=_exist; S.lbData=null; await persist(); enterApp(); return; }
   if((DB.leagues||[]).length>=3)return toast('Maximal 3 Ligen — verlasse zuerst eine.');
   const fav=($('#ob-fav')||{}).value||(DB.me&&DB.me.fav)||'', tz=(DB.me&&DB.me.tz)||detectTz();
+  const _ch=($('#ob-champ')||{}).value||''; if(_ch){DB.special=DB.special||{};DB.special.champ=_ch;}
   if(CLOUD){
     const {error:je}=await sb.rpc('join_league',{p_code:code,p_name:name});
     if(je){ const mm=(je.message||'').toLowerCase(); if(mm.includes('not found'))return toast('Diese Liga gibt es nicht — prüfe den Code.'); console.warn('join',je); return toast('Konnte nicht beitreten: '+(je.message||je.code||'Fehler')); }
@@ -1905,14 +1909,17 @@ function firstKickoff(){ let m=Infinity; DB.fixtures.forEach(f=>{const t=new Dat
 function md2Done(){ const g=DB.fixtures.filter(f=>f.md===2); return g.length>0 && g.every(f=>DB.results[f.id]!=null); }
 function specialLocked(){ return md2Done(); }
 function specialPointsForState(s){
-  if(!tournamentFinished())return 0;
-  const sp=(s&&s.special)||{}; if(!sp.scorer&&!sp.assist)return 0;
-  const tbl=scorerTable(); if(!tbl.length)return 0;
+  const sp=(s&&s.special)||{};
+  let champPts=0;
+  if(sp.champ&&KO_CHAMP&&sp.champ===KO_CHAMP)champPts=20;
+  if(!tournamentFinished())return champPts;
+  if(!sp.scorer&&!sp.assist)return champPts;
+  const tbl=scorerTable(); if(!tbl.length)return champPts;
   const maxG=Math.max(0,...tbl.map(x=>x.g)), maxA=Math.max(0,...tbl.map(x=>x.a));
   let pts=0;
   if(sp.scorer){ const p=pl(sp.scorer); const row=p&&tbl.find(x=>x.name===p.name); if(row&&maxG>0&&row.g===maxG)pts+=15; }
   if(sp.assist){ const p=pl(sp.assist); const row=p&&tbl.find(x=>x.name===p.name); if(row&&maxA>0&&row.a===maxA)pts+=15; }
-  return pts;
+  return pts+champPts;
 }
 function mySpecialPoints(){ return specialPointsForState({special:DB.special}); }
 function setTorView(v){ S.torView=v; render(); }
@@ -1933,9 +1940,14 @@ function viewTor(){
     if(locked) return `<div class="st-row">${inner}${right}</div>`;
     return `<button class="st-row tap" onclick="openSpecialPick('${field}')">${inner}${p?`<span class="lb-chev">${svg(I.chevR)}</span>`:`<span class="lb-chev">${svg(I.chevR)}</span>`}</button>`;
   }
+  const champ=DB.special&&DB.special.champ;
+  let cRight; if(KO_CHAMP){ const ok=champ===KO_CHAMP; cRight=`<span class="st-pts ${ok?'ok':'no'}">${ok?'+20':'0'}</span>`; } else cRight=`<span class="st-wait">offen</span>`;
+  const cInner=champ?`<span class="ppl-fl">${fi(champ)}</span><div class="ppl-i"><div class="ppl-n">${esc(T(champ).n)}</div><div class="ppl-m">Weltmeister · +20 Punkte</div></div>`:`<span class="ppl-add" style="background:var(--field);color:var(--ink-3)">+</span><div class="ppl-i"><div class="ppl-n">Weltmeister</div><div class="ppl-m">${locked?'nicht gewählt':'Team wählen · +20 Punkte'}</div></div>`;
+  const champRow=locked?`<div class="st-row">${cInner}${cRight}</div>`:`<button class="st-row tap" onclick="openChampPick()">${cInner}<span class="lb-chev">${svg(I.chevR)}</span></button>`;
   let html=`<div class="view-title">Torjäger<div class="vt-sub">Tore & Vorlagen · Sondertipps</div></div>`;
-  html+=`<div class="adm-h" style="margin:0 2px 10px">Sondertipps · je +15 Punkte</div>`;
+  html+=`<div class="adm-h" style="margin:0 2px 10px">Sondertipps · Torjäger je +15 · Weltmeister +20</div>`;
   html+=`<div class="st-card">
+    ${champRow}
     ${pickRow('Torschützenkönig','scorer')}
     ${pickRow('Top-Vorlagengeber','assist')}
     <div class="st-note">${fin?'Endgültig ausgewertet — die Punkte zählen jetzt mit.':(locked?'Spieltag 2 ist vollständig gewertet — Sondertipps gesperrt. Auswertung automatisch am Turnierende.':'Du kannst noch wählen oder ändern, bis Spieltag 2 vollständig gewertet ist. Ausgewertet wird am Turnierende anhand der echten Tor- und Vorlagen-Tabelle.')}</div>
@@ -1983,6 +1995,8 @@ function renderSpecialPick(keepFocus){
   if(keepFocus){ const el=$('#sp-q'); if(el){ el.focus(); try{el.setSelectionRange(el.value.length,el.value.length);}catch(e){} } }
 }
 async function setSpecial(pid){ DB.special=DB.special||{}; const fld=S.spField; const prev=DB.special[fld]; DB.special[fld]=pid; const r=await persist(); if(r!==true){ if(prev!=null)DB.special[fld]=prev; else delete DB.special[fld]; render(); return toast(persistFail(r)); } closeSheet(); render(); const p=pl(pid); toast('Sondertipp: '+(p?lastName(p.name):'gespeichert')); }
+async function setChamp(code){ if(specialLocked())return toast('Zu spät — Sondertipps sind gesperrt'); DB.special=DB.special||{}; const prev=DB.special.champ; DB.special.champ=code; const r=await persist(); if(r!==true){ if(prev!=null)DB.special.champ=prev; else delete DB.special.champ; render(); return toast(persistFail(r)); } closeSheet(); render(); toast('Weltmeister-Tipp: '+T(code).n); confetti(12,.4); }
+function openChampPick(){ if(specialLocked())return toast('Zu spät — Sondertipps sind gesperrt'); const cur=DB.special&&DB.special.champ; const rows=Object.keys(TEAMS).sort((a,b)=>T(a).n.localeCompare(T(b).n)).map(k=>`<button class="ppl ${cur===k?'sel':''}" style="width:100%;text-align:left" onclick="setChamp('${k}')"><span class="ppl-fl">${fi(k)}</span><div class="ppl-i"><div class="ppl-n">${esc(T(k).n)}</div></div>${cur===k?svg(I.check):''}</button>`).join(''); sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>Wer wird Weltmeister?</h2><div class="ss">+20 Punkte bei richtigem Tipp · änderbar bis Ende Spieltag 2</div></div><div class="sheet-bd">${rows}</div>`); }
 function clearSpecial(){ if(DB.special)delete DB.special[S.spField]; persist(); closeSheet(); render(); }
 
 /* ============================================================ RANGLISTE ============================================================ */
@@ -2552,6 +2566,7 @@ async function koCommitScore(){
   const adv=Object.assign({},KO_ADV); if(h===a){adv[id]=S.koAdv;}else{delete adv[id];}
   if(!(await koSet('adv',JSON.stringify(adv))))return;
   KO_ADV=adv;
+  if(id===104){ const w=koWinLose(104); const code=(w&&w.win)||''; if(CLOUD&&sb){ try{ await sb.rpc('admin_ko_set',{p_key:'champion',p_val:code}); }catch(e){ console.warn('champ',e); } } KO_CHAMP=code||null; }
   toast(h+':'+a+' gespeichert ✓'); refreshAfterAdmin(); renderKoAdmin();
 }
 async function koClearScore(){
