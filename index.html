@@ -1572,15 +1572,21 @@ function myStarPoints(){let s=0;DB.fixtures.forEach(f=>{const v=starPoints(f.id)
 function totalPoints(){return myTipPoints()+myStarPoints()+mySpecialPoints()+(DB.refPts||0);}
 
 /* ============================================================ HEUTE ============================================================ */
-function dateList(){return [...new Set(DB.fixtures.map(f=>localDayKey(f.ko)))].sort();}
-function autoCurrentDay(){const dates=dateList();if(!dates.length)return '';for(const d of dates){const g=DB.fixtures.filter(f=>localDayKey(f.ko)===d);if(!(g.length>0&&g.every(f=>DB.results[f.id])))return d;}return dates[dates.length-1];}
+function dateList(){const ds=new Set(DB.fixtures.map(f=>localDayKey(f.ko)));if(typeof koUnlocked==='function'&&koUnlocked())KO_FIX.forEach(k=>ds.add(localDayKey(k.ko)));return [...ds].sort();}
+function koDayGames(day){return (typeof koUnlocked==='function'&&koUnlocked())?KO_FIX.filter(k=>localDayKey(k.ko)===day).sort((a,b)=>new Date(a.ko)-new Date(b.ko)):[];}
+function autoCurrentDay(){const dates=dateList();if(!dates.length)return '';for(const d of dates){const g=DB.fixtures.filter(f=>localDayKey(f.ko)===d).concat(koDayGames(d));if(!(g.length>0&&g.every(f=>DB.results[f.id])))return d;}return dates[dates.length-1];}
 function focusDay(){const dates=dateList();if(!dates.length)return '';if(S.day&&dates.includes(S.day))return S.day;return autoCurrentDay();}
 function jumpCurrent(){S.day=null;render();}
 function viewHeute(){
   const dates=dateList(), t=todayStr(), day=focusDay(), idx=dates.indexOf(day);
   const games=DB.fixtures.filter(f=>localDayKey(f.ko)===day).sort((a,b)=>new Date(a.ko)-new Date(b.ko));
-  const md=games[0]?games[0].md:1;
-  const tippedAll=games.length>0 && games.every(f=>{const p=DB.preds[f.id];return p&&p.h!=null&&p.a!=null;});
+  const koGames=koDayGames(day);
+  const first=games[0]||koGames[0];
+  const nGames=games.length+koGames.length;
+  const md=games[0]?games[0].md:null;
+  const dayLabel=md?('Spieltag '+md):(koGames[0]?esc(koGames[0].round):'Spieltag');
+  const tippable=games.concat(koGames.filter(k=>koTeam(k.id,'A')&&koTeam(k.id,'B')&&!(DB.results[k.id]&&DB.results[k.id].h!=null)));
+  const tippedAll=tippable.length>0 && tippable.every(f=>{const p=DB.preds[f.id];return p&&p.h!=null&&p.a!=null;});
   const preStart = t < dates[0];
   let hero;
   if(preStart && day===dates[0]){
@@ -1588,11 +1594,12 @@ function viewHeute(){
     hero=`<div class="day-hero pre"><div class="dh-k">Noch ${dleft} Tage bis zur WM</div><div class="dh-nav"><button class="dn-btn" ${idx<=0?'disabled':''} onclick="setDay('${dates[idx-1]||''}')">${svg(I.chevL)}</button><div class="dh-big">Eröffnungstag</div><button class="dn-btn" ${idx>=dates.length-1?'disabled':''} onclick="setDay('${dates[idx+1]||''}')">${svg(I.chevR)}</button></div><div class="dh-sub">${games[0]?koDayLong(games[0].ko):''} · Spieltag ${md}</div></div>`;
   } else {
     const isToday=day===t;
-    hero=`<div class="day-hero"><div class="dh-k">${isToday?'Heute · ':''}Spieltag ${md} · ${games.length} Spiel${games.length!==1?'e':''}</div><div class="dh-nav"><button class="dn-btn" ${idx<=0?'disabled':''} onclick="setDay('${dates[idx-1]||''}')">${svg(I.chevL)}</button><div class="dh-big">${games[0]?koDayLong(games[0].ko):"—"}</div><button class="dn-btn" ${idx>=dates.length-1?'disabled':''} onclick="setDay('${dates[idx+1]||''}')">${svg(I.chevR)}</button></div><div class="dh-sub">tippe alle Partien dieses Tages</div>${day!==autoCurrentDay()?`<button class="dh-cur" onclick="jumpCurrent()">Zum aktuellen Spieltag ›</button>`:''}</div>`;
+    hero=`<div class="day-hero"><div class="dh-k">${isToday?'Heute · ':''}${dayLabel} · ${nGames} Spiel${nGames!==1?'e':''}</div><div class="dh-nav"><button class="dn-btn" ${idx<=0?'disabled':''} onclick="setDay('${dates[idx-1]||''}')">${svg(I.chevL)}</button><div class="dh-big">${first?koDayLong(first.ko):"—"}</div><button class="dn-btn" ${idx>=dates.length-1?'disabled':''} onclick="setDay('${dates[idx+1]||''}')">${svg(I.chevR)}</button></div><div class="dh-sub">tippe alle Partien dieses Tages</div>${day!==autoCurrentDay()?`<button class="dh-cur" onclick="jumpCurrent()">Zum aktuellen Spieltag ›</button>`:''}</div>`;
   }
   let html=hero;
 
   games.forEach(f=>html+=matchCard(f));
+  koGames.forEach(k=>html+=koMatchCard(k));
   if(tippedAll) html+=`<div class="done-banner">${svg(I.check)} Alle Spiele dieses Tages getippt — stark!</div>`;
   const mine=totalPoints();
   html+=`<button class="stand-strip" onclick="go('rangliste')"><div><div class="ss-k">Dein Punktestand</div><div class="ss-v">${mine} Punkte</div></div><div class="ss-arrow">Rangliste ›</div></button>`;
