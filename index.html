@@ -895,6 +895,13 @@ html,body{overscroll-behavior-y:none}
 /* Zahlen überall tabellarisch */
 .lb-pts,.lb-rank,.m-pt,.tile .n,.mb-tot .n,.gt-r,.hd-pts .v{font-variant-numeric:tabular-nums}
 
+
+/* Rechtliches: Hinweis-Bar + Link-Buttons */
+.linkish{background:none;border:0;padding:0;margin:0;color:var(--ink-2);text-decoration:underline;font:inherit;font-size:inherit;cursor:pointer}
+.cl-note{position:fixed;left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:35;background:var(--ink);color:#fff;border-radius:var(--r-lg);padding:12px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 16px 34px -16px rgba(0,0,0,.5);animation:rise .35s ease}
+.cl-note-t{font-size:12.5px;line-height:1.5;color:rgba(255,255,255,.92)}
+.cl-note-ok{flex:0 0 auto;background:var(--accent-grad);color:#fff;border:0;border-radius:var(--pill);font-weight:800;font-size:13px;padding:9px 16px;cursor:pointer;font-family:inherit}
+.legal p{font-size:13.5px;line-height:1.6;color:var(--ink-2);margin:0 0 10px}
 </style>
 </head>
 <body>
@@ -1023,7 +1030,7 @@ function renderAuth(mode){
     <label class="rem"><input type="checkbox" id="au-rem" checked onchange="setRemember(this.checked)"><span>Angemeldet bleiben</span></label>
     <div id="au-err" class="auth-err"></div>
     <button class="btn btn-pri btn-wide" onclick="${su?'doSignup()':'doLogin()'}">${su?'Konto erstellen':'Anmelden'}</button>
-    <div class="ob-mini" style="margin-top:14px">Inoffizielles WM-Tippspiel · kein Einsatz, keine Preise</div>
+    <div class="ob-mini" style="margin-top:14px">Inoffizielles WM-Tippspiel · kein Einsatz, keine Preise · <button class="linkish" onclick="openLegal('ds')">Rechtliches &amp; Datenschutz</button></div>
   </div>`;
 }
 function authErr(m){const e=$('#au-err'); if(e){e.textContent=m||''; e.style.display=m?'block':'none';}}
@@ -2235,18 +2242,36 @@ function openHowItWorks(){
       <button class="btn btn-soft btn-wide" style="margin-top:8px" onclick="closeSheet()">Verstanden</button>
     </div>`);
 }
-function openLegal(){
-  sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>Rechtliche Hinweise</h2><div class="ss">Bitte kurz lesen</div></div>
+function openLegal(sec){
+  sheetRaw(`<div class="sheet-hd"><div class="grip"></div><h2>Rechtliches &amp; Datenschutz</h2><div class="ss">Impressum · Nutzungsbedingungen · Datenschutzerklärung</div></div>
     <div class="sheet-bd legal">
-      <h4>Anbieter</h4><p>[Hier deinen Namen / Kontakt eintragen] — privates, nicht-kommerzielles Projekt.</p>
-      <h4>Keine Verbindung zur FIFA</h4><p>Captain League ist ein inoffizielles, privates Tippspiel und steht in keiner Verbindung zur FIFA oder offiziellen Veranstaltern. „FIFA World Cup", Team-, Wettbewerbs- und Spielernamen sowie alle Marken gehören ihren jeweiligen Inhabern. Spielplan-, Team- und Spielerdaten dienen ausschließlich Informations- und Unterhaltungszwecken.</p>
-      <h4>Kein Glücksspiel</h4><p>Captain League ist kostenlos und dient der Unterhaltung. Es gibt keinen Geldeinsatz, keine Wetten und keine Geldgewinne. Es handelt sich ausdrücklich nicht um Glücksspiel.</p>
-      <h4>Datenschutz</h4><p>Deine Eingaben (Name, Lieblingsteam, Tipps, Captain-Auswahl, Liga-Code) werden lokal auf deinem Gerät gespeichert. Im Online-Modus werden Profil und Liga zusätzlich sicher in der Datenbank gespeichert, damit deine Liga geräteübergreifend funktioniert. Es werden keine Daten an Werbe-Dritte verkauft. Für die Flaggen-Grafiken wird der Dienst flagcdn.com geladen.</p>
-      <h4>Keine Gewähr</h4><p>Alle Angaben (Spielplan, Anstosszeiten, Spieler- und Marktwerte) erfolgen ohne Gewähr auf Richtigkeit, Vollständigkeit oder Aktualität. Anstosszeiten werden in deiner lokalen Gerätezeit angezeigt und können von offiziellen Angaben abweichen.</p>
-      <h4>Nutzung</h4><p>Die Nutzung erfolgt auf eigene Verantwortung. Empfohlen ab 16 Jahren.</p>
-      <p class="legal-date">Stand: Juni 2026 · Captain League</p>
-      <button class="btn btn-soft btn-wide" style="margin-top:6px" onclick="closeSheet()">Schließen</button>
+      <h4 id="leg-imp">Impressum</h4>
+      <p>Verantwortlich für Captain League (captainleague.ch):<br><b>Anton Sauter</b><br>[Strasse Nr.]<br>[PLZ Ort], Schweiz<br>E-Mail: [deine E-Mail-Adresse]</p>
+      <p>Privates, nicht-kommerzielles Tippspiel zur Fussball-WM 2026 — ohne Werbung und ohne kostenpflichtige Leistungen.</p>
+      <h4>Keine Verbindung zur FIFA</h4>
+      <p>Captain League ist ein inoffizielles, privates Tippspiel und steht in keiner Verbindung zur FIFA oder zu offiziellen Veranstaltern. Team-, Wettbewerbs- und Spielernamen sowie alle Marken gehören ihren jeweiligen Inhabern; Spielplan- und Spielerdaten dienen ausschliesslich Informations- und Unterhaltungszwecken.</p>
+      <h4>Kein Glücksspiel</h4>
+      <p>Captain League ist kostenlos. Über die Plattform gibt es keinen Geldeinsatz, keine Wetten und keine Geldgewinne. Private Abmachungen unter Teilnehmenden liegen ausserhalb der Verantwortung des Betreibers.</p>
+      <h4 id="leg-nutzung">Nutzungsbedingungen</h4>
+      <p>Ein Konto pro Person. Wähle einen Benutzernamen, der keine Rechte Dritter verletzt und nicht anstössig ist.</p>
+      <p>Tipps und Captain-Wahlen sind ab Spielbeginn (bzw. ab erfasstem Resultat) verbindlich und können nicht mehr geändert werden.</p>
+      <p>Bei Manipulation, Mehrfachkonten oder anstössigem Verhalten kann der Betreiber Konten sperren und Wertungen korrigieren. Es besteht kein Anspruch auf ständige Verfügbarkeit oder fehlerfreie Punkteberechnung; offensichtliche Fehler dürfen korrigiert werden.</p>
+      <p>Es gilt Schweizer Recht.</p>
+      <h4 id="leg-ds">Datenschutzerklärung</h4>
+      <p><b>Verantwortlicher:</b> siehe Impressum.</p>
+      <p><b>Verarbeitete Daten:</b> Kontodaten (Benutzername; Passwort — ausschliesslich verschlüsselt gespeichert; intern wird eine technische Login-Kennung verwendet, eine echte E-Mail-Adresse ist nicht nötig), Spieldaten (Tipps, Captains, Sondertipps, Punkte, Liga-Zugehörigkeit, Einladungen) sowie technische Zugriffsdaten (z.&nbsp;B. IP-Adresse) in den Server-Logs der unten genannten Anbieter.</p>
+      <p><b>Zwecke &amp; Rechtsgrundlagen:</b> Betrieb des Spiels, Berechnung und Anzeige der Ranglisten sowie Schutz vor Missbrauch (Moderation). Grundlage sind die Durchführung der Spielteilnahme und das berechtigte Interesse an einem sicheren Betrieb (Schweizer DSG; für Nutzer im EWR: Art.&nbsp;6 Abs.&nbsp;1 lit.&nbsp;b und f DSGVO).</p>
+      <p><b>Sichtbarkeit für andere:</b> Dein Benutzername, dein Lieblingsteam und deine Punkte erscheinen in den Ranglisten. Mitglieder deiner Liga sehen deine Tipps und Captains erst nach Spielbeginn.</p>
+      <p><b>Empfänger / Auftragsverarbeiter:</b> Supabase (Datenbank &amp; Login), GitHub Pages (Auslieferung der Website; GitHub Inc., USA), Cloudflare (DNS). Die Schriften werden über Google Fonts von Google-Servern geladen; dabei wird deine IP-Adresse an Google übertragen. Es gibt keine Werbung, kein Tracking, keine Analyse-Tools und keinen Verkauf von Daten.</p>
+      <p><b>Lokale Speicherung («Cookies»):</b> Es wird ausschliesslich technisch notwendige lokale Speicherung im Browser genutzt (Login-Sitzung, Spielstand). Keine Tracking-Cookies. Du kannst sie jederzeit über deine Browserdaten löschen; danach musst du dich neu anmelden.</p>
+      <p><b>Speicherdauer &amp; Löschung:</b> Deine Daten bleiben gespeichert, bis du dein Konto löschst — direkt in der App unter Einstellungen → «Konto &amp; Daten löschen». Damit werden Konto, Tipps, Captains, Liga-Zugehörigkeit und Einladungen entfernt.</p>
+      <p><b>Deine Rechte:</b> Auskunft, Berichtigung und Löschung deiner Daten — am schnellsten direkt in der App oder per E-Mail an die Adresse im Impressum.</p>
+      <h4>Keine Gewähr</h4>
+      <p>Alle Angaben (Spielplan, Anstosszeiten, Spieler- und Leistungsdaten) erfolgen ohne Gewähr auf Richtigkeit, Vollständigkeit oder Aktualität. Anstosszeiten werden in deiner lokalen Gerätezeit angezeigt und können von offiziellen Angaben abweichen.</p>
+      <p class="legal-date">Stand: 10. Juni 2026 · Captain League</p>
+      <button class="btn btn-soft btn-wide" style="margin-top:6px" onclick="closeSheet()">Schliessen</button>
     </div>`);
+  if(sec){ setTimeout(function(){ var el=document.getElementById('leg-'+sec); if(el)el.scrollIntoView({block:'start'}); },90); }
 }
 /* ============================================================ ADMIN — Ergebnisse & Captain-Leistungen (nur Betreiber) ============================================================ */
 function openAdminGate(){ if(!DB.isAdmin)return toast('Kein Admin-Zugang — nur für den Betreiber.'); openAdmin(); }
@@ -2409,6 +2434,14 @@ let _liveSyncAt=0;
 async function syncLive(force){ if(!CLOUD||!sb||!USER)return; const n=Date.now(); if(!force&&n-_liveSyncAt<30000)return; _liveSyncAt=n; try{ await loadResultsCloud(fxList()); const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA')))render(); }catch(e){ console.warn('sync',e); } }
 document.addEventListener('visibilitychange',function(){ if(!document.hidden)syncLive(); });
 window.addEventListener('focus',function(){ syncLive(); });
+function showLegalNote(){ try{ if(localStorage.getItem('cl:legalNote'))return; }catch(e){}
+  if(document.getElementById('cl-note'))return;
+  var d=document.createElement('div'); d.id='cl-note'; d.className='cl-note';
+  d.innerHTML='<div class="cl-note-t">Captain League speichert nur technisch notwendige Daten im Browser (Login &amp; Spielstand) — kein Tracking, keine Werbung. <button class="linkish" style="color:#fff" onclick="openLegal(\'ds\')">Mehr erfahren</button></div><button class="cl-note-ok" onclick="dismissLegalNote()">OK</button>';
+  document.body.appendChild(d);
+}
+function dismissLegalNote(){ try{ localStorage.setItem('cl:legalNote','1'); }catch(e){} var d=document.getElementById('cl-note'); if(d)d.remove(); }
+setTimeout(showLegalNote,900);
 
 /* ============================================================ ADMIN — K.O.-Phase ============================================================ */
 async function koSet(key,val){
